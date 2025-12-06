@@ -16,6 +16,11 @@ export interface AuthState {
   isLoggedIn: boolean
   isLoading: boolean
   error: string | null
+
+  // MFA-related state
+  mfaRequired: boolean
+  mfaToken: string | null
+  isVerifyingMfa: boolean
 }
 
 // Authentication form data types

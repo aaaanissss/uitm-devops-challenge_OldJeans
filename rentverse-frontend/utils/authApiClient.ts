@@ -109,4 +109,52 @@ export class AuthApiClient {
       throw error instanceof Error ? error : new Error('Network error occurred')
     }
   }
+
+  // MFA Setup - initiate and confirm
+  static async setupMfa() {
+    if (typeof window === 'undefined') throw new Error('Not in browser')
+
+    const token = localStorage.getItem('authToken')
+    if (!token) throw new Error('Not authenticated')
+
+    const res = await fetch('/api/auth/mfa/setup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    const data = await res.json()
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Failed to start MFA setup')
+    }
+
+    // data.data = { qrCode, secret }
+    return data.data as { qrCode: string; secret: string }
+  }
+
+  // Confirm MFA setup with code
+  static async confirmMfa(code: string) {
+    if (typeof window === 'undefined') throw new Error('Not in browser')
+
+    const token = localStorage.getItem('authToken')
+    if (!token) throw new Error('Not authenticated')
+
+    const res = await fetch('/api/auth/mfa/confirm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ code }),
+    })
+
+    const data = await res.json()
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || 'Failed to enable MFA')
+    }
+
+    return true
+  }
 }

@@ -7,6 +7,7 @@ interface AuthActions {
   // Login functionality
   setPassword: (password: string) => void
   submitLogIn: () => Promise<void>
+  submitMfaVerify: (code: string) => Promise<void> // New MFA verification action
 
   // Signup functionality
   setFirstName: (firstName: string) => void
@@ -33,6 +34,7 @@ interface AuthActions {
   initializeAuth: () => void
   validateToken: () => Promise<boolean>
   refreshUserData: () => Promise<boolean>
+  
 }
 
 interface AuthFormState {
@@ -53,6 +55,11 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   isLoggedIn: false,
   isLoading: false,
   error: null,
+
+  // MFA state
+  mfaRequired: false,
+  mfaToken: null,
+  isVerifyingMfa: false,
 
   // Form state
   password: '',
@@ -125,30 +132,68 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       const result = await response.json()
 
       if (response.ok && result.success) {
-        // Store user data and token
+        // CASE 1: Backend says MFA is required
+        if (result.data?.status === 'MFA_REQUIRED') {
+          const backendUser = result.data.user
+
+          const user: User = {
+            id: backendUser.id,
+            email: backendUser.email,
+            firstName: backendUser.firstName || '',
+            lastName: backendUser.lastName || '',
+            name:
+              backendUser.name ||
+              `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
+            dateOfBirth: backendUser.dateOfBirth || '',
+            phone: backendUser.phone || '',
+            role: backendUser.role || 'user',
+            birthdate: backendUser.dateOfBirth || undefined,
+          }
+
+          // We *do not* log the user in yet, we just mark MFA step as required
+          set({
+            user,
+            isLoggedIn: false,     // not fully authenticated yet
+            mfaRequired: true,
+            mfaToken: result.data.mfaToken,
+            password: '',
+            email: '',             // clear login form
+            error: null,
+          })
+
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[AUTH] MFA required for user:', user.email)
+            console.log('[AUTH] MFA token:', result.data.mfaToken)
+          }
+
+          // Important: do NOT redirect and do NOT store authToken here
+          return
+        }
+
+        // CASE 2: Normal login (no MFA enabled)
         const backendUser = result.data.user
-        
-        // Debug logging for development
+
         if (process.env.NODE_ENV === 'development') {
           console.log('[AUTH] Backend user data:', backendUser)
           console.log('[AUTH] First name:', backendUser.firstName)
           console.log('[AUTH] Last name:', backendUser.lastName)
           console.log('[AUTH] Name field:', backendUser.name)
         }
-        
+
         const user: User = {
           id: backendUser.id,
           email: backendUser.email,
           firstName: backendUser.firstName || '',
           lastName: backendUser.lastName || '',
-          name: backendUser.name || `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
+          name:
+            backendUser.name ||
+            `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
           dateOfBirth: backendUser.dateOfBirth || '',
           phone: backendUser.phone || '',
           role: backendUser.role || 'user',
           birthdate: backendUser.dateOfBirth || undefined,
         }
-        
-        // Debug logging for final user object
+
         if (process.env.NODE_ENV === 'development') {
           console.log('[AUTH] Final user object:', user)
           console.log('[AUTH] Constructed name:', user.name)
@@ -157,23 +202,22 @@ const useAuthStore = create<AuthStore>((set, get) => ({
         set({
           user,
           isLoggedIn: true,
+          mfaRequired: false,
+          mfaToken: null,
           password: '',
           email: '', // Clear email from form
           error: null,
         })
 
-        // Store token and user data in localStorage for future API calls
         if (typeof window !== 'undefined') {
           localStorage.setItem('authToken', result.data.token)
           localStorage.setItem('authUser', JSON.stringify(user))
-          // Also set cookie for server-side middleware access
           setCookie('authToken', result.data.token, 7) // 7 days expiry
         }
 
-        // Navigate to home page instead of forcing to property page
         window.location.href = '/'
       } else {
-        // Handle 400/401 errors
+        // Error case
         setError(result.message || 'Login failed. Please check your credentials.')
       }
     } catch (error) {
@@ -183,6 +227,82 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       setLoading(false)
     }
   },
+
+  // MFA verification
+  submitMfaVerify: async (code: string) => {
+    const { mfaToken, setLoading, setError } = get()
+
+    if (!mfaToken) {
+      setError('MFA session has expired. Please log in again.')
+      return
+    }
+
+    if (!code || code.length !== 6) {
+      setError('Please enter the 6-digit code from your authenticator app.')
+      return
+    }
+
+    set({ isVerifyingMfa: true })
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code, mfaToken }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        const backendUser = result.data.user
+
+        const user: User = {
+          id: backendUser.id,
+          email: backendUser.email,
+          firstName: backendUser.firstName || '',
+          lastName: backendUser.lastName || '',
+          name:
+            backendUser.name ||
+            `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
+          dateOfBirth: backendUser.dateOfBirth || '',
+          phone: backendUser.phone || '',
+          role: backendUser.role || 'user',
+          birthdate: backendUser.dateOfBirth || undefined,
+        }
+
+        set({
+          user,
+          isLoggedIn: true,
+          mfaRequired: false,
+          mfaToken: null,
+          isVerifyingMfa: false,
+          error: null,
+        })
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('authToken', result.data.token)
+          localStorage.setItem('authUser', JSON.stringify(user))
+          setCookie('authToken', result.data.token, 7)
+        }
+
+        // Done – send user to home
+        window.location.href = '/'
+      } else {
+        setError(result.message || 'Invalid or expired MFA code.')
+      }
+    } catch (error) {
+      console.error('MFA verification error:', error)
+      setError('MFA verification failed. Please try again.')
+    } finally {
+      set({ isVerifyingMfa: false })
+      setLoading(false)
+    }
+  },
+
 
   submitSignUp: async () => {
     const { firstName, lastName, email, signUpPassword, birthdate, phone, setLoading, setError } = get()
@@ -300,6 +420,9 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       email: '',
       phone: '',
       signUpPassword: '',
+      mfaRequired: false,
+      mfaToken: null,
+      isVerifyingMfa: false,
     })
     
     // Clear localStorage and cookies
@@ -319,6 +442,9 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     phone: '',
     signUpPassword: '',
     error: null,
+    mfaRequired: false,
+    mfaToken: null,
+    isVerifyingMfa: false,
   }),
 
   // Initialize auth state from localStorage
