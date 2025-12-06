@@ -5,6 +5,10 @@ const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { passport, handleAppleSignIn } = require('../config/passport');
 
+// Task 1: MFA
+const speakeasy = require('speakeasy'); // For TOTP generation and verification
+const qrcode = require('qrcode'); // For generating QR codes
+const { auth } = require('../middleware/auth'); // Import auth middleware
 const router = express.Router();
 
 // Initialize Passport
@@ -275,18 +279,44 @@ router.post(
         });
       }
 
-      // Generate JWT token
+      // If user has MFA enabled, do NOT issue full JWT yet
+      if (user.mfaEnabled && user.mfaSecret) {
+        // Short-lived token just for MFA step
+        const mfaToken = jwt.sign(
+          {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+            purpose: 'mfa_login',
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: '5m' } // 5 minutes
+        );
+
+        // Remove password before sending
+        const { password: _, ...userWithoutPassword } = user;
+
+        return res.json({
+          success: true,
+          message: 'MFA required',
+          data: {
+            status: 'MFA_REQUIRED',
+            mfaToken,
+            user: userWithoutPassword,
+          },
+        });
+      }
+
+      // No MFA → normal login
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
       );
 
-      // Remove password from response
-      // eslint-disable-next-line no-unused-vars
       const { password: _, ...userWithoutPassword } = user;
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Login successful',
         data: {
@@ -297,6 +327,302 @@ router.post(
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/auth/mfa/setup
+ * Requires: Authorization: Bearer <JWT>
+ * Purpose: Generate TOTP secret + QR code for the current user
+ */
+/**
+ * @swagger
+ * /api/auth/mfa/setup:
+ *   post:
+ *     summary: Start MFA setup (generate TOTP secret + QR code)
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: MFA setup initiated
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/auth/mfa/confirm:
+ *   post:
+ *     summary: Confirm MFA setup by validating first TOTP code
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - code
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 example: "123456"
+ *     responses:
+ *       200:
+ *         description: MFA enabled successfully
+ *       400:
+ *         description: Invalid code or MFA not initialized
+ */
+router.post('/mfa/setup', auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // Prevent regenerating if already enabled (change setting if i want later la)
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, mfaEnabled: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Generate a new TOTP secret
+    const secret = speakeasy.generateSecret({
+      name: `Rentverse (${user.email})`,
+      length: 20,
+    });
+
+    // Generate QR code data URL
+    const otpauthUrl = secret.otpauth_url;
+
+    const qrCodeDataUrl = await qrcode.toDataURL(otpauthUrl);
+
+    // Save secret (but do NOT enable yet)
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        mfaSecret: secret.base32,
+        // mfaEnabled stays false until confirmed
+      },
+    });
+
+    return res.json({
+      success: true,
+      message: 'MFA setup initiated',
+      data: {
+        qrCode: qrCodeDataUrl,
+        secret: secret.base32, // frontend normally doesn't show this, but useful for dev/demo
+      },
+    });
+  } catch (error) {
+    console.error('MFA setup error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+});
+
+/**
+ * POST /api/auth/mfa/confirm
+ * Requires: Authorization: Bearer <JWT>
+ * Body: { code: "123456" }
+ * Purpose: Verify TOTP once and enable MFA on the account
+ */
+router.post(
+  '/mfa/confirm',
+  auth,
+  [body('code').isLength({ min: 6, max: 6 }).trim()],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const userId = req.user.id;
+      const { code } = req.body;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          mfaSecret: true,
+          mfaEnabled: true,
+        },
+      });
+
+      if (!user || !user.mfaSecret) {
+        return res.status(400).json({
+          success: false,
+          message: 'MFA not initialized for this user',
+        });
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.mfaSecret,
+        encoding: 'base32',
+        token: code,
+        window: 1, // allow +/- 30s drift
+      });
+
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid MFA code',
+        });
+      }
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: {
+          mfaEnabled: true,
+        },
+      });
+
+      return res.json({
+        success: true,
+        message: 'MFA enabled successfully',
+      });
+    } catch (error) {
+      console.error('MFA confirm error:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+      });
+    }
+  }
+);
+
+/**
+ * POST /api/auth/mfa/verify
+ * Body: { code: "123456", mfaToken: "<token from /login>" }
+ * Purpose: Complete login by verifying TOTP and issuing normal JWT
+ */
+/**
+ * @swagger
+ * /api/auth/mfa/verify:
+ *   post:
+ *     summary: Verify MFA code during login
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - code
+ *               - mfaToken
+ *             properties:
+ *               code:
+ *                 type: string
+ *                 example: "123456"
+ *               mfaToken:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: MFA verification successful
+ *       400:
+ *         description: Bad request (wrong or expired code)
+ *       401:
+ *         description: Invalid or expired MFA token
+ */
+router.post(
+  '/mfa/verify',
+  [
+    body('code').isLength({ min: 6, max: 6 }).trim(),
+    body('mfaToken').notEmpty(),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const { code, mfaToken } = req.body;
+
+      let payload;
+      try {
+        payload = jwt.verify(mfaToken, process.env.JWT_SECRET);
+      } catch (err) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired MFA token',
+        });
+      }
+
+      if (payload.purpose !== 'mfa_login') {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid MFA token purpose',
+        });
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+      });
+
+      if (!user || !user.isActive || !user.mfaEnabled || !user.mfaSecret) {
+        return res.status(401).json({
+          success: false,
+          message: 'User not eligible for MFA login',
+        });
+      }
+
+      const isValid = speakeasy.totp.verify({
+        secret: user.mfaSecret,
+        encoding: 'base32',
+        token: code,
+        window: 1,
+      });
+
+      if (!isValid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid MFA code',
+        });
+      }
+
+      // MFA passed → issue normal long-lived JWT
+      const token = jwt.sign(
+        { userId: user.id, email: user.email, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+
+      const { password: _, ...userWithoutPassword } = user;
+
+      return res.json({
+        success: true,
+        message: 'MFA verification successful',
+        data: {
+          user: userWithoutPassword,
+          token,
+        },
+      });
+    } catch (error) {
+      console.error('MFA verify error:', error);
+      return res.status(500).json({
         success: false,
         message: 'Internal server error',
       });
