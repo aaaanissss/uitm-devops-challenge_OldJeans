@@ -9,6 +9,7 @@ export interface User {
   phone: string
   role: string
   birthdate?: string // Keep for backward compatibility
+  mfaEnabled?: boolean // Indicates if MFA is enabled for the user
 }
 
 export interface AuthState {

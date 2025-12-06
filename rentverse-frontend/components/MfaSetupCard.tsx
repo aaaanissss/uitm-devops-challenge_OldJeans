@@ -6,7 +6,7 @@ import ButtonFilled from '@/components/ButtonFilled'
 import BoxError from '@/components/BoxError'
 import { AuthApiClient } from '@/utils/authApiClient'
 
-export default function MfaSetupCard() {
+export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
   const [qrCode, setQrCode] = useState<string | null>(null)
   const [secret, setSecret] = useState<string | null>(null)
   const [code, setCode] = useState('')
@@ -14,6 +14,7 @@ export default function MfaSetupCard() {
   const [isConfirming, setIsConfirming] = useState(false)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isEnabled, setIsEnabled] = useState(mfaEnabled ?? false)
 
   const handleStartSetup = async () => {
     try {
@@ -100,8 +101,28 @@ export default function MfaSetupCard() {
                   Or enter this key manually: <span className="font-mono">{secret}</span>
                 </p>
               )}
+            {isEnabled && (
+                <div className="mt-6">
+                    <ButtonFilled
+                    onClick={async () => {
+                        try {
+                        setIsLoading(true)
+                        await AuthApiClient.disableMfa()
+                        setIsEnabled(false)
+                        setSuccessMessage('MFA has been disabled.')
+                        } catch (e: any) {
+                        setError(e.message)
+                        } finally {
+                        setIsLoading(false)
+                        }
+                    }}
+                    className="bg-red-600 hover:bg-red-700"
+                    >
+                    Disable MFA
+                    </ButtonFilled>
+                </div>
+            )}  
             </div>
-
             <form onSubmit={handleConfirm} className="flex-1 space-y-4">
               <p className="text-sm text-slate-700">
                 2. Enter the 6-digit code from your authenticator app to confirm

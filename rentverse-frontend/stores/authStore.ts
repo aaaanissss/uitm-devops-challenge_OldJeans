@@ -148,6 +148,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
             phone: backendUser.phone || '',
             role: backendUser.role || 'user',
             birthdate: backendUser.dateOfBirth || undefined,
+            mfaEnabled: backendUser.mfaEnabled ?? false, // Capture MFA enabled status
           }
 
           // We *do not* log the user in yet, we just mark MFA step as required
@@ -192,6 +193,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
           phone: backendUser.phone || '',
           role: backendUser.role || 'user',
           birthdate: backendUser.dateOfBirth || undefined,
+          mfaEnabled: backendUser.mfaEnabled ?? false,
         }
 
         if (process.env.NODE_ENV === 'development') {
@@ -256,6 +258,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       })
 
       const result = await response.json()
+      console.log('[MFA VERIFY] status:', response.status, 'result:', result)
 
       if (response.ok && result.success) {
         const backendUser = result.data.user
@@ -272,6 +275,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
           phone: backendUser.phone || '',
           role: backendUser.role || 'user',
           birthdate: backendUser.dateOfBirth || undefined,
+          mfaEnabled: backendUser.mfaEnabled ?? false, 
         }
 
         set({
@@ -338,6 +342,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
           phone: backendUser.phone || phone,
           role: backendUser.role || 'user',
           birthdate: backendUser.dateOfBirth || birthdate,
+          mfaEnabled: backendUser.mfaEnabled ?? false, 
         }
 
         set({
@@ -523,6 +528,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
             phone: backendUser.phone || '',
             role: backendUser.role || 'user',
             birthdate: backendUser.dateOfBirth || undefined,
+            mfaEnabled: backendUser.mfaEnabled ?? false, 
           }
           
           // Debug logging for final user object
@@ -587,6 +593,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
             phone: backendUser.phone || '',
             role: backendUser.role || 'user',
             birthdate: backendUser.dateOfBirth || undefined,
+            mfaEnabled: backendUser.mfaEnabled ?? false, 
           }
 
           set({
