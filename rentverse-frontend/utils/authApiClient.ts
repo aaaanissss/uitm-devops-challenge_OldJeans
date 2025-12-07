@@ -157,4 +157,25 @@ export class AuthApiClient {
 
     return true
   }
+
+static async disableMfa() {
+  const token = localStorage.getItem('authToken')
+  if (!token) throw new Error('Not authenticated')
+
+  const res = await fetch('/api/auth/mfa/disable', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  const data = await res.json()
+
+  if (!res.ok || !data.success) {
+    throw new Error(data.message || 'Failed to disable MFA')
+  }
+
+  return true
+}
 }

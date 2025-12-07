@@ -67,6 +67,14 @@ model User {
   propertyRatings  PropertyRating[]  @relation("PropertyRatings")
   propertyFavorites PropertyFavorite[] @relation("PropertyFavorites")
 
+  // NEW: security-related relations
+  auditLogs        AuditLog[]
+  alerts           Alert[]
+
+  // MFA
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?  // base32 secret for TOTP
+
   @@map("users")
 }
 
@@ -299,6 +307,48 @@ model PropertyFavorite {
   @@map("property_favorites")
 }
 
+/// Generic security / audit log for important user actions
+model AuditLog {
+  id          String         @id @default(uuid())
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  eventType   AuditEventType
+  ipAddress   String?
+  userAgent   String?
+  geoLocation String?        // e.g. "MY|Selangor|Klang" or country/city text
+  metadata    Json?          // flexible extra data (result: SUCCESS/FAIL, reason, etc.)
+  createdAt   DateTime       @default(now())
+
+  alerts      Alert[]
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@map("audit_logs")
+}
+
+/// Security alerts derived from audit logs (suspicious behaviour, brute force, etc.)
+model Alert {
+  id          String         @id @default(uuid())
+  userId      String?
+  user        User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  auditLogId  String?
+  auditLog    AuditLog?      @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+
+  type        AlertType
+  severity    AlertSeverity  @default(MEDIUM)
+  description String
+  status      AlertStatus    @default(OPEN)
+  createdAt   DateTime       @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([type, createdAt])
+  @@map("alerts")
+}
+
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model spatial_ref_sys {
   srid      Int     @id
@@ -319,6 +369,41 @@ enum ListingStatus {
   PENDING_REVIEW
   APPROVED
   REJECTED
+}
+
+/// Types of security/audit events we track
+enum AuditEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  LOGOUT
+  PASSWORD_CHANGE
+  MFA_CHALLENGE
+  MFA_SUCCESS
+  MFA_FAILURE
+}
+
+/// Types of alerts produced by our detection rules
+enum AlertType {
+  BRUTE_FORCE           // many failed logins in short time
+  NEW_DEVICE            // new IP or user-agent
+  IMPOSSIBLE_TRAVEL     // logins from far-apart locations in short time
+  MULTI_ACCOUNT_FAILURE // same IP failing many accounts
+  SUSPICIOUS_MFA        // repeated MFA failures
+  OTHER
+}
+
+/// Severity of the alert
+enum AlertSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// Lifecycle status of an alert
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
 }
 
 /// Status approval per-riwayat keputusan admin.

@@ -11,6 +11,12 @@ const qrcode = require('qrcode'); // For generating QR codes
 const { auth } = require('../middleware/auth'); // Import auth middleware
 const router = express.Router();
 
+// Security monitoring
+const {
+  logAuditEvent,
+  runLoginDetectionRules,
+} = require('../services/securityMonitoring');
+
 // Initialize Passport
 router.use(passport.initialize());
 
@@ -263,7 +269,24 @@ router.post(
         where: { email },
       });
 
+      // CASE 1: user not found or inactive → LOGIN_FAILURE
       if (!user || !user.isActive) {
+        const failureLog = await logAuditEvent({
+          req,
+          userId: user ? user.id : null,
+          eventType: 'LOGIN_FAILURE',
+          metadata: {
+            reason: !user ? 'USER_NOT_FOUND' : 'USER_INACTIVE',
+            email,
+          },
+        });
+
+        await runLoginDetectionRules({
+          req,
+          user: user || null,
+          eventType: 'LOGIN_FAILURE',
+        });
+
         return res.status(401).json({
           success: false,
           message: 'Invalid credentials',
@@ -272,12 +295,33 @@ router.post(
 
       // Check password
       const isPasswordValid = await bcrypt.compare(password, user.password);
+
+      // CASE 2: wrong password → LOGIN_FAILURE
       if (!isPasswordValid) {
+        const failureLog = await logAuditEvent({
+          req,
+          userId: user.id,
+          eventType: 'LOGIN_FAILURE',
+          metadata: {
+            reason: 'INVALID_PASSWORD',
+            email,
+          },
+        });
+
+        await runLoginDetectionRules({
+          req,
+          user,
+          eventType: 'LOGIN_FAILURE',
+        });
+
         return res.status(401).json({
           success: false,
           message: 'Invalid credentials',
         });
       }
+
+      // At this point, credentials are correct
+      // We'll log success + run detection later, after MFA decision.
 
       // If user has MFA enabled, do NOT issue full JWT yet
       if (user.mfaEnabled && user.mfaSecret) {
@@ -296,6 +340,34 @@ router.post(
         // Remove password before sending
         const { password: _, ...userWithoutPassword } = user;
 
+        // CASE 3: Credentials ok, but MFA required
+        const primarySuccessLog = await logAuditEvent({
+          req,
+          userId: user.id,
+          eventType: 'LOGIN_SUCCESS', // successful primary auth
+          metadata: {
+            email,
+            mfaRequired: true,
+          },
+        });
+
+        // Optional: log MFA_CHALLENGE separately (we keep it)
+        await logAuditEvent({
+          req,
+          userId: user.id,
+          eventType: 'MFA_CHALLENGE',
+          metadata: {
+            email,
+          },
+        });
+
+        // (Detection rules hook – no rules for success yet, but we pass latestLog)
+        await runLoginDetectionRules({
+          req,
+          user,
+          eventType: 'LOGIN_SUCCESS',
+        });
+
         return res.json({
           success: true,
           message: 'MFA required',
@@ -307,7 +379,7 @@ router.post(
         });
       }
 
-      // No MFA → normal login
+      // CASE 4: No MFA → normal login success
       const token = jwt.sign(
         { userId: user.id, email: user.email, role: user.role },
         process.env.JWT_SECRET,
@@ -315,6 +387,24 @@ router.post(
       );
 
       const { password: _, ...userWithoutPassword } = user;
+
+      // Log LOGIN_SUCCESS
+      await logAuditEvent({
+        req,
+        userId: user.id,
+        eventType: 'LOGIN_SUCCESS',
+        metadata: {
+          email,
+          mfaRequired: false,
+        },
+      });
+
+      // (Detection rules hook – no rules for success yet, but future-proof)
+      await runLoginDetectionRules({
+        req,
+        user,
+        eventType: 'LOGIN_SUCCESS',
+      });
 
       return res.json({
         success: true,
@@ -534,6 +624,7 @@ router.post(
  *                 example: "123456"
  *               mfaToken:
  *                 type: string
+ *                 description: Short-lived token issued by /api/auth/login when MFA is required
  *     responses:
  *       200:
  *         description: MFA verification successful
@@ -670,6 +761,7 @@ router.get('/me', async (req, res) => {
         role: true,
         isActive: true,
         createdAt: true,
+        mfaEnabled: true,
       },
     });
 
@@ -692,6 +784,66 @@ router.get('/me', async (req, res) => {
     });
   }
 });
+
+/**
+ * POST /api/auth/mfa/disable
+ * Requires: Authorization: Bearer <JWT>
+ * Purpose: Turn off MFA and delete secret
+ */
+/**
+ * @swagger
+ * /api/auth/mfa/disable:
+ *   post:
+ *     summary: Disable MFA for the current user
+ *     description: Disables MFA and clears the stored TOTP secret for the authenticated user.
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: MFA disabled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: MFA is not enabled for this user
+ *       401:
+ *         description: Unauthorized - missing or invalid token
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/mfa/disable', auth, async (req, res) => {
+  try {
+    const userId = req.user.id
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        mfaEnabled: false,
+        mfaSecret: null,
+      },
+    })
+
+    return res.json({
+      success: true,
+      message: 'MFA disabled successfully',
+    })
+  } catch (error) {
+    console.error('Disable MFA error:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    })
+  }
+})
 
 /**
  * @swagger
