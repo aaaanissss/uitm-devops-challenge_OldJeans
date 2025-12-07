@@ -3,16 +3,13 @@
 import { useEffect } from 'react'
 import useAuthStore from '@/stores/authStore'
 
-function AuthInitializer(): null {
-  const initializeAuth = useAuthStore((state) => state.initializeAuth)
+export default function AuthInitializer() {
+  const initializeAuth = useAuthStore((s) => s.initializeAuth)
 
   useEffect(() => {
-    // Initialize auth state from localStorage on app start
+    console.log('[AuthInitializer] Initializing auth...')
     initializeAuth()
   }, [initializeAuth])
 
-  // This component doesn't render anything
   return null
 }
-
-export default AuthInitializer

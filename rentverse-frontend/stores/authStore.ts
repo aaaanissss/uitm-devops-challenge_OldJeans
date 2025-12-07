@@ -1,53 +1,65 @@
-import { create } from 'zustand'
-import type { User, AuthState } from '@/types/auth'
-import { AuthApiClient } from '@/utils/authApiClient'
-import { setCookie, deleteCookie } from '@/utils/cookies'
+import { create } from "zustand";
+import type { User, AuthState } from "@/types/auth";
+import type { SecuritySummary } from "@/types/security";
+import { AuthApiClient } from "@/utils/authApiClient";
+import { setCookie, deleteCookie } from "@/utils/cookies";
+
+interface SecurityState {
+  summary: SecuritySummary | null;
+  loadSecuritySummary: () => Promise<void>;
+}
 
 interface AuthActions {
   // Login functionality
-  setPassword: (password: string) => void
-  submitLogIn: () => Promise<void>
-  submitMfaVerify: (code: string) => Promise<void> // New MFA verification action
+  setPassword: (password: string) => void;
+  submitLogIn: () => Promise<void>;
+  submitMfaVerify: (code: string) => Promise<void>;
 
-  // Signup functionality
-  setFirstName: (firstName: string) => void
-  setLastName: (lastName: string) => void
-  setBirthdate: (birthdate: string) => void
-  setEmail: (email: string) => void
-  setPhone: (phone: string) => void
-  setSignUpPassword: (password: string) => void
-  submitSignUp: () => Promise<void>
+  // Signup
+  setFirstName: (s: string) => void;
+  setLastName: (s: string) => void;
+  setBirthdate: (s: string) => void;
+  setEmail: (s: string) => void;
+  setPhone: (s: string) => void;
+  setSignUpPassword: (s: string) => void;
+  submitSignUp: () => Promise<void>;
 
-  // Email check functionality
-  validateEmail: (email: string) => boolean
-  submitEmailCheck: () => Promise<{ exists: boolean; isActive: boolean; role: string | null } | null>
+  // Email check
+  validateEmail: (email: string) => boolean;
+  submitEmailCheck: () => Promise<{
+    exists: boolean;
+    isActive: boolean;
+    role: string | null;
+  } | null>;
 
-  // General auth actions
-  setLoading: (loading: boolean) => void
-  setError: (error: string | null) => void
-  logout: () => void
-  resetForm: () => void
-  isLoginFormValid: () => boolean
-  isSignUpFormValid: () => boolean
-  
-  // Auth persistence
-  initializeAuth: () => void
-  validateToken: () => Promise<boolean>
-  refreshUserData: () => Promise<boolean>
-  
+  // General
+  setLoading: (b: boolean) => void;
+  setError: (s: string | null) => void;
+  logout: () => void;
+  resetForm: () => void;
+  isLoginFormValid: () => boolean;
+  isSignUpFormValid: () => boolean;
+
+  // Persistence
+  initializeAuth: () => void;
+  validateToken: () => Promise<boolean>;
+  refreshUserData: () => Promise<boolean>;
 }
 
 interface AuthFormState {
-  password: string
-  firstName: string
-  lastName: string
-  birthdate: string
-  email: string
-  phone: string
-  signUpPassword: string
+  password: string;
+  firstName: string;
+  lastName: string;
+  birthdate: string;
+  email: string;
+  phone: string;
+  signUpPassword: string;
 }
 
-type AuthStore = AuthState & AuthFormState & AuthActions
+type AuthStore = AuthState &
+  AuthFormState &
+  AuthActions &
+  SecurityState;
 
 const useAuthStore = create<AuthStore>((set, get) => ({
   // Auth state
@@ -61,263 +73,214 @@ const useAuthStore = create<AuthStore>((set, get) => ({
   mfaToken: null,
   isVerifyingMfa: false,
 
+  // Security summary
+  summary: null,
+
+  // Security summary loader
+  loadSecuritySummary: async () => {
+    try {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("authToken")
+          : null;
+
+      if (!token) return;
+
+      const res = await fetch("/api/security/me/summary", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        set({ summary: json.data });
+      }
+    } catch (err) {
+      console.error("[AuthStore] Failed to load security summary:", err);
+    }
+  },
+
   // Form state
-  password: '',
-  firstName: '',
-  lastName: '',
-  birthdate: '',
-  email: '',
-  phone: '',
-  signUpPassword: '',
+  password: "",
+  firstName: "",
+  lastName: "",
+  birthdate: "",
+  email: "",
+  phone: "",
+  signUpPassword: "",
 
-  // Actions
-  setPassword: (password: string) => set({ password }),
-  setFirstName: (firstName: string) => set({ firstName }),
-  setLastName: (lastName: string) => set({ lastName }),
-  setBirthdate: (birthdate: string) => set({ birthdate }),
-  setEmail: (email: string) => set({ email }),
-  setPhone: (phone: string) => set({ phone }),
-  setSignUpPassword: (signUpPassword: string) => set({ signUpPassword }),
-  setLoading: (isLoading: boolean) => set({ isLoading }),
-  setError: (error: string | null) => set({ error }),
+  // Basic setters
+  setPassword: (password) => set({ password }),
+  setFirstName: (firstName) => set({ firstName }),
+  setLastName: (lastName) => set({ lastName }),
+  setBirthdate: (birthdate) => set({ birthdate }),
+  setEmail: (email) => set({ email }),
+  setPhone: (phone) => set({ phone }),
+  setSignUpPassword: (signUpPassword) => set({ signUpPassword }),
+  setLoading: (isLoading) => set({ isLoading }),
+  setError: (error) => set({ error }),
 
-  validateEmail: (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(email)
-  },
+  validateEmail: (email) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),
 
-  isLoginFormValid: () => {
-    const { password } = get()
-    return password.length >= 6
-  },
+  isLoginFormValid: () => get().password.length >= 6,
 
   isSignUpFormValid: () => {
-    const { firstName, lastName, email, signUpPassword, birthdate, phone } = get()
-    const { validateEmail } = get()
+    const { firstName, lastName, email, signUpPassword, birthdate, phone } =
+      get();
     return (
       firstName.trim().length > 0 &&
       lastName.trim().length > 0 &&
-      validateEmail(email) &&
+      get().validateEmail(email) &&
       signUpPassword.length >= 6 &&
       birthdate.length > 0 &&
       phone.trim().length > 0
-    )
+    );
   },
 
+  //-------------------------------------------
+  // LOGIN (with MFA support)
+  //-------------------------------------------
   submitLogIn: async () => {
-    const { email, password, setLoading, setError } = get()
+    const { email, password, setLoading, setError } = get();
 
-    if (!get().isLoginFormValid()) {
-      setError('Please enter a valid password')
-      return
-    }
+    if (!email) return setError("Email is required");
+    if (password.length < 6)
+      return setError("Please enter a valid password");
 
-    if (!email) {
-      setError('Email is required')
-      return
-    }
-
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
-      const result = await response.json()
+      const result = await response.json();
 
-      if (response.ok && result.success) {
-        // CASE 1: Backend says MFA is required
-        if (result.data?.status === 'MFA_REQUIRED') {
-          const backendUser = result.data.user
-
-          const user: User = {
-            id: backendUser.id,
-            email: backendUser.email,
-            firstName: backendUser.firstName || '',
-            lastName: backendUser.lastName || '',
-            name:
-              backendUser.name ||
-              `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-            dateOfBirth: backendUser.dateOfBirth || '',
-            phone: backendUser.phone || '',
-            role: backendUser.role || 'user',
-            birthdate: backendUser.dateOfBirth || undefined,
-            mfaEnabled: backendUser.mfaEnabled ?? false, // Capture MFA enabled status
-          }
-
-          // We *do not* log the user in yet, we just mark MFA step as required
-          set({
-            user,
-            isLoggedIn: false,     // not fully authenticated yet
-            mfaRequired: true,
-            mfaToken: result.data.mfaToken,
-            password: '',
-            email: '',             // clear login form
-            error: null,
-          })
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AUTH] MFA required for user:', user.email)
-            console.log('[AUTH] MFA token:', result.data.mfaToken)
-          }
-
-          // Important: do NOT redirect and do NOT store authToken here
-          return
-        }
-
-        // CASE 2: Normal login (no MFA enabled)
-        const backendUser = result.data.user
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AUTH] Backend user data:', backendUser)
-          console.log('[AUTH] First name:', backendUser.firstName)
-          console.log('[AUTH] Last name:', backendUser.lastName)
-          console.log('[AUTH] Name field:', backendUser.name)
-        }
-
-        const user: User = {
-          id: backendUser.id,
-          email: backendUser.email,
-          firstName: backendUser.firstName || '',
-          lastName: backendUser.lastName || '',
-          name:
-            backendUser.name ||
-            `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-          dateOfBirth: backendUser.dateOfBirth || '',
-          phone: backendUser.phone || '',
-          role: backendUser.role || 'user',
-          birthdate: backendUser.dateOfBirth || undefined,
-          mfaEnabled: backendUser.mfaEnabled ?? false,
-        }
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AUTH] Final user object:', user)
-          console.log('[AUTH] Constructed name:', user.name)
-        }
+      //---------------------------------------
+      // MFA Required path
+      //---------------------------------------
+      if (response.ok && result.success && result.data?.status === "MFA_REQUIRED") {
+        const backendUser = result.data.user;
 
         set({
-          user,
+          user: backendUser,
+          isLoggedIn: false,
+          mfaRequired: true,
+          mfaToken: result.data.mfaToken,
+          password: "",
+          email: "",
+          error: null,
+        });
+
+        return;
+      }
+
+      //---------------------------------------
+      // Normal login
+      //---------------------------------------
+      if (response.ok && result.success) {
+        const backendUser = result.data.user;
+
+        set({
+          user: backendUser,
           isLoggedIn: true,
           mfaRequired: false,
           mfaToken: null,
-          password: '',
-          email: '', // Clear email from form
+          password: "",
+          email: "",
           error: null,
-        })
+        });
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('authToken', result.data.token)
-          localStorage.setItem('authUser', JSON.stringify(user))
-          setCookie('authToken', result.data.token, 7) // 7 days expiry
+        if (typeof window !== "undefined") {
+          localStorage.setItem("authToken", result.data.token);
+          localStorage.setItem("authUser", JSON.stringify(backendUser));
+          setCookie("authToken", result.data.token, 7);
         }
 
-        window.location.href = '/'
+        // Load security summary after login
+        get().loadSecuritySummary();
+
+        window.location.href = "/";
       } else {
-        // Error case
-        setError(result.message || 'Login failed. Please check your credentials.')
+        setError(result.message || "Invalid credentials");
       }
-    } catch (error) {
-      console.error('Login error:', error)
-      setError('Login failed. Please try again.')
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Login failed. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   },
 
-  // MFA verification
+  //-------------------------------------------
+  // MFA Verification
+  //-------------------------------------------
   submitMfaVerify: async (code: string) => {
-    const { mfaToken, setLoading, setError } = get()
+    const { mfaToken, setLoading, setError } = get();
 
-    if (!mfaToken) {
-      setError('MFA session has expired. Please log in again.')
-      return
-    }
+    if (!mfaToken) return setError("MFA session expired");
+    if (!code || code.length !== 6) return setError("Enter a valid 6-digit code");
 
-    if (!code || code.length !== 6) {
-      setError('Please enter the 6-digit code from your authenticator app.')
-      return
-    }
-
-    set({ isVerifyingMfa: true })
-    setLoading(true)
-    setError(null)
+    set({ isVerifyingMfa: true });
+    setLoading(true);
+    setError(null);
 
     try {
-      const response = await fetch('/api/auth/mfa/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const res = await fetch("/api/auth/mfa/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, mfaToken }),
-      })
+      });
 
-      const result = await response.json()
-      console.log('[MFA VERIFY] status:', response.status, 'result:', result)
+      const result = await res.json();
 
-      if (response.ok && result.success) {
-        const backendUser = result.data.user
-
-        const user: User = {
-          id: backendUser.id,
-          email: backendUser.email,
-          firstName: backendUser.firstName || '',
-          lastName: backendUser.lastName || '',
-          name:
-            backendUser.name ||
-            `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-          dateOfBirth: backendUser.dateOfBirth || '',
-          phone: backendUser.phone || '',
-          role: backendUser.role || 'user',
-          birthdate: backendUser.dateOfBirth || undefined,
-          mfaEnabled: backendUser.mfaEnabled ?? false, 
-        }
+      if (res.ok && result.success) {
+        const backendUser = result.data.user;
 
         set({
-          user,
+          user: backendUser,
           isLoggedIn: true,
           mfaRequired: false,
           mfaToken: null,
           isVerifyingMfa: false,
           error: null,
-        })
+        });
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('authToken', result.data.token)
-          localStorage.setItem('authUser', JSON.stringify(user))
-          setCookie('authToken', result.data.token, 7)
+        if (typeof window !== "undefined") {
+          localStorage.setItem("authToken", result.data.token);
+          localStorage.setItem("authUser", JSON.stringify(backendUser));
+          setCookie("authToken", result.data.token, 7);
         }
 
-        // Done – send user to home
-        window.location.href = '/'
+        // Load summary after MFA login
+        get().loadSecuritySummary();
+
+        window.location.href = "/";
       } else {
-        setError(result.message || 'Invalid or expired MFA code.')
+        setError(result.message || "Invalid MFA code");
       }
-    } catch (error) {
-      console.error('MFA verification error:', error)
-      setError('MFA verification failed. Please try again.')
+    } catch (err) {
+      console.error("MFA verify error:", err);
+      setError("MFA verification failed");
     } finally {
-      set({ isVerifyingMfa: false })
-      setLoading(false)
+      set({ isVerifyingMfa: false });
+      setLoading(false);
     }
   },
 
-
+  //-------------------------------------------
+  // SIGNUP
+  //-------------------------------------------
   submitSignUp: async () => {
-    const { firstName, lastName, email, signUpPassword, birthdate, phone, setLoading, setError } = get()
+    const { firstName, lastName, email, signUpPassword, birthdate, phone } = get();
 
-    if (!get().isSignUpFormValid()) {
-      setError('Please fill in all fields correctly')
-      return
-    }
+    if (!get().isSignUpFormValid())
+      return set({ error: "Fill in all fields properly" });
 
-    setLoading(true)
-    setError(null)
+    set({ isLoading: true, error: null });
 
     try {
       const result = await AuthApiClient.register({
@@ -327,293 +290,232 @@ const useAuthStore = create<AuthStore>((set, get) => ({
         lastName,
         dateOfBirth: birthdate,
         phone,
-      })
+      });
 
       if (result.success) {
-        // Store user data and token
-        const backendUser = result.data.user
-        const user: User = {
-          id: backendUser.id,
-          email: backendUser.email,
-          firstName: backendUser.firstName || '',
-          lastName: backendUser.lastName || '',
-          name: backendUser.name || `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-          dateOfBirth: backendUser.dateOfBirth || birthdate,
-          phone: backendUser.phone || phone,
-          role: backendUser.role || 'user',
-          birthdate: backendUser.dateOfBirth || birthdate,
-          mfaEnabled: backendUser.mfaEnabled ?? false, 
-        }
+        const backendUser = result.data.user;
 
         set({
-          user,
+          user: backendUser,
           isLoggedIn: true,
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          signUpPassword: '',
-          birthdate: '',
+          firstName: "",
+          lastName: "",
+          email: "",
+          phone: "",
+          signUpPassword: "",
+          birthdate: "",
           error: null,
-        })
+        });
 
-        // Store token and user data in localStorage for future API calls
-        if (typeof window !== 'undefined' && result.data.token) {
-          localStorage.setItem('authToken', result.data.token)
-          localStorage.setItem('authUser', JSON.stringify(user))
-          // Also set cookie for server-side middleware access
-          setCookie('authToken', result.data.token, 7) // 7 days expiry
+        if (typeof window !== "undefined") {
+          localStorage.setItem("authToken", result.data.token);
+          localStorage.setItem("authUser", JSON.stringify(backendUser));
+          setCookie("authToken", result.data.token, 7);
         }
 
-        // Navigate to home page instead of forcing to property page
-        window.location.href = '/'
+        // Load summary
+        get().loadSecuritySummary();
+
+        window.location.href = "/";
       } else {
-        // Handle errors
-        setError(result.message || 'Sign up failed. Please try again.')
+        set({ error: result.message || "Sign up failed" });
       }
-    } catch (error) {
-      console.error('Sign up error:', error)
-      setError(error instanceof Error ? error.message : 'Sign up failed. Please try again.')
+    } catch (err: any) {
+      console.error("Signup error:", err);
+      set({ error: err?.message || "Sign up failed" });
     } finally {
-      setLoading(false)
+      set({ isLoading: false });
     }
   },
 
+  //-------------------------------------------
+  // Email check
+  //-------------------------------------------
   submitEmailCheck: async () => {
-    const { email, validateEmail, setLoading, setError } = get()
+    const { email } = get();
 
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email address')
-      return null
+    if (!get().validateEmail(email)) {
+      set({ error: "Invalid email format" });
+      return null;
     }
 
-    setLoading(true)
-    setError(null)
+    set({ isLoading: true, error: null });
 
     try {
-      const response = await fetch('/api/auth/check-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const res = await fetch("/api/auth/check-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
-      })
+      });
 
-      const result = await response.json()
+      const result = await res.json();
+      if (res.ok && result.success) return result.data;
 
-      if (response.ok && result.success) {
-        return result.data
-      } else {
-        setError(result.message || 'Email check failed. Please try again.')
-        return null
-      }
-    } catch (error) {
-      console.error('Email check error:', error)
-      setError('Email check failed. Please try again.')
-      return null
+      set({ error: result.message || "Unable to check email" });
+      return null;
+    } catch (err) {
+      console.error("Email check error:", err);
+      set({ error: "Email check failed" });
+      return null;
     } finally {
-      setLoading(false)
+      set({ isLoading: false });
     }
   },
 
+  //-------------------------------------------
+  // LOGOUT
+  //-------------------------------------------
   logout: () => {
     set({
       user: null,
       isLoggedIn: false,
       error: null,
-      password: '',
-      email: '',
-      phone: '',
-      signUpPassword: '',
+      password: "",
+      email: "",
+      phone: "",
+      signUpPassword: "",
       mfaRequired: false,
       mfaToken: null,
       isVerifyingMfa: false,
-    })
-    
-    // Clear localStorage and cookies
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('authUser')
-      deleteCookie('authToken')
+      summary: null,
+    });
+
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
+      deleteCookie("authToken");
     }
   },
 
-  resetForm: () => set({
-    password: '',
-    firstName: '',
-    lastName: '',
-    birthdate: '',
-    email: '',
-    phone: '',
-    signUpPassword: '',
-    error: null,
-    mfaRequired: false,
-    mfaToken: null,
-    isVerifyingMfa: false,
-  }),
+  //-------------------------------------------
+  // RESET FORM
+  //-------------------------------------------
+  resetForm: () =>
+    set({
+      password: "",
+      firstName: "",
+      lastName: "",
+      birthdate: "",
+      email: "",
+      phone: "",
+      signUpPassword: "",
+      error: null,
+      mfaRequired: false,
+      mfaToken: null,
+      isVerifyingMfa: false,
+    }),
 
-  // Initialize auth state from localStorage
+  //-------------------------------------------
+  // INIT AUTH (persistent login)
+  //-------------------------------------------
   initializeAuth: () => {
-    if (typeof window === 'undefined') return
+    if (typeof window === "undefined") return;
 
     try {
-      const storedToken = localStorage.getItem('authToken')
-      const storedUser = localStorage.getItem('authUser')
+      const token = localStorage.getItem("authToken");
+      const storedUser = localStorage.getItem("authUser");
 
-      if (storedToken && storedUser) {
-        const user = JSON.parse(storedUser) as User
+      if (token && storedUser) {
+        const user = JSON.parse(storedUser) as User;
+        set({ user, isLoggedIn: true });
+
+        // Load summary at boot
+        get().loadSecuritySummary();
+      }
+    } catch (err) {
+      console.error("Auth init error:", err);
+      deleteCookie("authToken");
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("authUser");
+    }
+  },
+
+  //-------------------------------------------
+  // VALIDATE TOKEN
+  //-------------------------------------------
+  validateToken: async () => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("authToken")
+        : null;
+
+    if (!token) return false;
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await res.json();
+
+      if (res.ok && result.success && result.data?.user) {
         set({
-          user,
+          user: result.data.user,
           isLoggedIn: true,
           error: null,
-        })
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AUTH] Initialized with stored user:', user)
-        }
+        });
+
+        localStorage.setItem("authUser", JSON.stringify(result.data.user));
+
+        // Refresh summary
+        get().loadSecuritySummary();
+
+        return true;
       }
-    } catch (error) {
-      console.error('Error initializing auth:', error)
-      // Clear corrupted data
-      localStorage.removeItem('authToken')
-      localStorage.removeItem('authUser')
-      deleteCookie('authToken')
+
+      get().logout();
+      return false;
+    } catch (err) {
+      console.error("Token validation error:", err);
+      return false;
     }
   },
 
-  // Validate stored token and refresh user data with backend
-  validateToken: async () => {
-    if (typeof window === 'undefined') return false
-
-    const token = localStorage.getItem('authToken')
-    if (!token) return false
-
-    try {
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        
-        // Debug logging for development
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[AUTH] validateToken response:', result)
-          console.log('[AUTH] result.data:', result.data)
-        }
-        
-        if (result.success && result.data?.user) {
-          // Update user data with fresh data from backend
-          const backendUser = result.data.user
-          
-          // Debug logging for backend user data
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AUTH] validateToken backendUser:', backendUser)
-            console.log('[AUTH] validateToken firstName:', backendUser.firstName)
-            console.log('[AUTH] validateToken lastName:', backendUser.lastName)
-            console.log('[AUTH] validateToken name:', backendUser.name)
-          }
-          
-          const user: User = {
-            id: backendUser.id,
-            email: backendUser.email,
-            firstName: backendUser.firstName || '',
-            lastName: backendUser.lastName || '',
-            name: backendUser.name || `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-            dateOfBirth: backendUser.dateOfBirth || '',
-            phone: backendUser.phone || '',
-            role: backendUser.role || 'user',
-            birthdate: backendUser.dateOfBirth || undefined,
-            mfaEnabled: backendUser.mfaEnabled ?? false, 
-          }
-          
-          // Debug logging for final user object
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[AUTH] validateToken final user:', user)
-          }
-
-          set({
-            user,
-            isLoggedIn: true,
-            error: null,
-          })
-
-          // Update stored user data
-          localStorage.setItem('authUser', JSON.stringify(user))
-          return true
-        } else if (process.env.NODE_ENV === 'development') {
-          console.log('[AUTH] validateToken failed - no success or data:', result)
-        }
-      } else if (process.env.NODE_ENV === 'development') {
-        console.log('[AUTH] validateToken failed - response not ok:', response.status)
-      }
-      
-      // Token is invalid or response unsuccessful, clear auth state
-      get().logout()
-      return false
-    } catch (error) {
-      console.error('Token validation error:', error)
-      return false
-    }
-  },
-
-  // Refresh user data from backend
+  //-------------------------------------------
+  // REFRESH USER DATA
+  //-------------------------------------------
   refreshUserData: async () => {
-    if (typeof window === 'undefined') return false
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("authToken")
+        : null;
 
-    const token = localStorage.getItem('authToken')
-    if (!token) return false
+    if (!token) return false;
 
     try {
-      const response = await fetch('/api/auth/me', {
-        method: 'GET',
+      const res = await fetch("/api/auth/me", {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      })
+      });
 
-      if (response.ok) {
-        const result = await response.json()
-        
-        if (result.success && result.data?.user) {
-          // Update user data with fresh data from backend
-          const backendUser = result.data.user
-          const user: User = {
-            id: backendUser.id,
-            email: backendUser.email,
-            firstName: backendUser.firstName || '',
-            lastName: backendUser.lastName || '',
-            name: backendUser.name || `${backendUser.firstName || ''} ${backendUser.lastName || ''}`.trim(),
-            dateOfBirth: backendUser.dateOfBirth || '',
-            phone: backendUser.phone || '',
-            role: backendUser.role || 'user',
-            birthdate: backendUser.dateOfBirth || undefined,
-            mfaEnabled: backendUser.mfaEnabled ?? false, 
-          }
+      const result = await res.json();
 
-          set({
-            user,
-            isLoggedIn: true,
-            error: null,
-          })
+      if (res.ok && result.success && result.data?.user) {
+        set({
+          user: result.data.user,
+          isLoggedIn: true,
+          error: null,
+        });
 
-          // Update stored user data
-          localStorage.setItem('authUser', JSON.stringify(user))
-          return true
-        }
+        localStorage.setItem("authUser", JSON.stringify(result.data.user));
+
+        // Refresh summary
+        get().loadSecuritySummary();
+
+        return true;
       }
-      
-      return false
-    } catch (error) {
-      console.error('Error refreshing user data:', error)
-      return false
+
+      return false;
+    } catch (err) {
+      console.error("Refresh user error:", err);
+      return false;
     }
   },
-}))
+}));
 
-export default useAuthStore
+export default useAuthStore;

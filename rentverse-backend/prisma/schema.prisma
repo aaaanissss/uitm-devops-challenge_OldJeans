@@ -385,6 +385,7 @@ enum AuditEventType {
 /// Types of alerts produced by our detection rules
 enum AlertType {
   BRUTE_FORCE           // many failed logins in short time
+  SUSPICIOUS_ACTIVITY
   NEW_DEVICE            // new IP or user-agent
   IMPOSSIBLE_TRAVEL     // logins from far-apart locations in short time
   MULTI_ACCOUNT_FAILURE // same IP failing many accounts

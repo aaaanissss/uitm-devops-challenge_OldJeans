@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import useAuthStore from '@/stores/authStore'
 
 interface AuthGuardProps {
   children: React.ReactNode
-  redirectTo?: string
   requireAuth?: boolean
+  redirectTo?: string
 }
 
 /**
@@ -17,49 +17,42 @@ interface AuthGuardProps {
  */
 export default function AuthGuard({ 
   children, 
-  redirectTo = '/', 
-  requireAuth = false 
+  requireAuth = true, 
+  redirectTo = '/auth/login' 
 }: AuthGuardProps) {
   const { isLoggedIn, initializeAuth } = useAuthStore()
   const router = useRouter()
+  const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    // Initialize auth state on mount
+    // Initialize auth from localStorage
     initializeAuth()
+    
+    // Give it time to restore state
+    const timer = setTimeout(() => {
+      setIsReady(true)
+    }, 100)
+
+    return () => clearTimeout(timer)
   }, [initializeAuth])
 
   useEffect(() => {
+    if (!isReady) return
+
+    console.log('[AuthGuard] isLoggedIn:', isLoggedIn, 'requireAuth:', requireAuth)
+
     if (requireAuth && !isLoggedIn) {
-      // Redirect to login if auth is required but user is not logged in
-      router.push('/auth/login')
-    } else if (!requireAuth && isLoggedIn) {
-      // Redirect away from auth pages if user is already logged in
+      console.log('[AuthGuard] Redirecting to:', redirectTo)
       router.push(redirectTo)
     }
-  }, [isLoggedIn, requireAuth, redirectTo, router])
+  }, [isReady, isLoggedIn, requireAuth, redirectTo, router])
 
-  // For auth pages: don't render if user is logged in
-  if (!requireAuth && isLoggedIn) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-gray-600">Redirecting...</p>
-        </div>
-      </div>
-    )
+  if (!isReady) {
+    return <div>Loading...</div> // Show loading while initializing
   }
 
-  // For protected pages: don't render if user is not logged in
   if (requireAuth && !isLoggedIn) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-          <p className="text-gray-600">Checking authentication...</p>
-        </div>
-      </div>
-    )
+    return null // Don't render children while redirecting
   }
 
   return <>{children}</>
