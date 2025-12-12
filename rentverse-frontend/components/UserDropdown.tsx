@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import clsx from 'clsx'
-import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell } from 'lucide-react'
+import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell, FileText } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import useCurrentUser from '@/hooks/useCurrentUser'
 
@@ -204,6 +204,14 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
             >
               <Bell size={18} className="mr-3 text-slate-400" />
               <span className="font-medium">Security Alerts</span> {/* Admin Security Alerts for Task 4 */}
+            </Link>
+            <Link
+              href="/admin/security/audit-logs"
+              onClick={onClose}
+              className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
+            >
+              <FileText size={18} className="mr-3 text-slate-400" />
+              <span className="font-medium">Audit Logs</span>
             </Link>
           </>
         )}

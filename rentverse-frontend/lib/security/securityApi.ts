@@ -217,3 +217,133 @@ export async function updateAlertStatus(
 
   return json.data;
 }
+
+// Admin Audit Logs (task 5)
+
+export interface AdminAuditLog {
+  id: string;
+  eventType: string;
+  createdAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  metadata: Record<string, any> | null;
+
+  user?: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+
+  alerts?: {
+    id: string;
+    type: string;
+    severity: string;
+    status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+    createdAt: string;
+  }[];
+}
+
+type AdminAuditLogsResponse = {
+  success: boolean;
+  data: {
+    rows: AdminAuditLog[];
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  message?: string;
+};
+
+// Fetch admin audit logs with optional filters and pagination (Task 5)
+export async function getAdminAuditLogs(
+  token: string,
+  params?: {
+    page?: number;
+    limit?: number;
+    eventType?: string;
+    q?: string;
+    ipAddress?: string;
+    severity?: "LOW" | "MEDIUM" | "HIGH";
+  }
+) {
+  const qs = new URLSearchParams();
+
+  if (params?.page) qs.set("page", String(params.page));
+  if (params?.limit) qs.set("limit", String(params.limit));
+  if (params?.eventType) qs.set("eventType", params.eventType);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.ipAddress) qs.set("ipAddress", params.ipAddress);
+  if (params?.severity) qs.set("severity", params.severity);
+
+  const res = await fetch(
+    `${API_BASE_URL}/api/security/audit-logs${qs.toString() ? `?${qs}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Failed to load audit logs: ${res.status} ${text}`);
+  }
+
+  const json = (await res.json()) as AdminAuditLogsResponse;
+  if (!json.success) {
+    throw new Error(json.message || "Failed to load audit logs");
+  }
+
+  return json.data;
+}
+
+// Fetch audit log summary statistics 
+export type AdminAuditLogSummary = {
+  window: string;
+  start: string;
+  end: string;
+  failedLoginsOverTime: { t: string; c: number }[];
+  topSourceIps: { ipAddress: string | null; count: number }[];
+  eventTypeBreakdown: { eventType: string; count: number }[];
+};
+
+type AdminAuditLogSummaryResponse = {
+  success: boolean;
+  data: AdminAuditLogSummary;
+  message?: string;
+};
+
+export async function getAdminAuditLogSummary(
+  token: string,
+  params?: { window?: "24h" | "7d" }
+): Promise<AdminAuditLogSummary> {
+  const qs = new URLSearchParams();
+  if (params?.window) qs.set("window", params.window);
+
+  const res = await fetch(
+    `${API_BASE_URL}/api/security/audit-logs/summary${qs.toString() ? `?${qs}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Failed to load audit summary: ${res.status} ${text}`);
+  }
+
+  const json = (await res.json()) as AdminAuditLogSummaryResponse;
+  if (!json.success) throw new Error(json.message || "Failed to load audit summary");
+  return json.data;
+}
+
