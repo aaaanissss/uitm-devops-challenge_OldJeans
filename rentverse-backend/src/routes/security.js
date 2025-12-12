@@ -136,15 +136,30 @@ router.get('/me/activities', auth, async (req, res) => {
       });
     }
 
+    // Fetch last 20 login-related audit logs for this user
     const logs = await prisma.auditLog.findMany({
       where: {
         userId,
         eventType: {
-          in: ['LOGIN_SUCCESS', 'LOGIN_FAILURE', 'MFA_CHALLENGE', 'MFA_SUCCESS', 'MFA_FAILURE'],
+          in: [
+            'LOGIN_SUCCESS',
+            'LOGIN_FAILURE',
+            'MFA_CHALLENGE',
+            'MFA_SUCCESS',
+            'MFA_FAILURE',
+          ],
         },
       },
       orderBy: { createdAt: 'desc' },
       take: 20,
+      include: {
+        alerts: {
+          select: {
+            id: true,
+            status: true, // OPEN | ACKNOWLEDGED | RESOLVED
+          },
+        },
+      },
     });
 
     return res.json({
@@ -213,12 +228,13 @@ router.post("/me/report-incident", auth, async (req, res) => {
       data: alert,
     });
   } catch (err) {
-    console.error("report-incident error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to report incident",
-    });
-  }
+  console.error("report-incident error:", err);
+  return res.status(500).json({
+    success: false,
+    message: err?.message || "Failed to report incident",
+    code: err?.code || null,
+  });
+}
 });
 
 /** GET /api/security/me/summary

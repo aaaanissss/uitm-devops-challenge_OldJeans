@@ -680,6 +680,17 @@ router.post(
         });
       }
 
+      console.log('[MFA VERIFY] serverTime:', new Date().toISOString())
+      console.log('[MFA VERIFY] userId:', user.id, 'email:', user.email)
+      console.log('[MFA VERIFY] secretLen:', user.mfaSecret?.length)
+
+      const now = speakeasy.totp({ secret: user.mfaSecret, encoding: 'base32' })
+      const prev = speakeasy.totp({ secret: user.mfaSecret, encoding: 'base32', time: Math.floor(Date.now()/1000) - 30 })
+      const next = speakeasy.totp({ secret: user.mfaSecret, encoding: 'base32', time: Math.floor(Date.now()/1000) + 30 })
+
+      console.log('[MFA VERIFY] expected now/prev/next:', now, prev, next)
+      console.log('[MFA VERIFY] received code:', code)
+
       const isValid = speakeasy.totp.verify({
         secret: user.mfaSecret,
         encoding: 'base32',

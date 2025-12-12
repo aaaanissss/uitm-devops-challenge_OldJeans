@@ -14,6 +14,11 @@ export interface SecurityActivity {
   geoLocation: string | null;
   metadata: Record<string, any> | null;
   createdAt: string;
+  
+  alerts?: {
+    id: string;
+    status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+  }[];
 }
 
 interface SecurityActivityResponse {
@@ -97,4 +102,105 @@ export async function reportSuspiciousActivity(
   }
 
   return json.data as SecurityAlert;
+}
+
+export type AlertStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+
+export type AdminAlert = {
+  id: string;
+  userId: string | null;
+  auditLogId: string | null;
+  type: string;
+  severity: string;
+  description: string;
+  status: AlertStatus;
+  createdAt: string;
+  resolvedAt: string | null;
+
+  // because backend includes relations in /alerts:
+  user?: {
+    id: string;
+    email: string;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+
+  auditLog?: {
+    id: string;
+    eventType: string;
+    ipAddress: string | null;
+    createdAt: string;
+    metadata: any;
+  } | null;
+};
+
+type AdminAlertsResponse = {
+  success: boolean;
+  data: AdminAlert[];
+  message?: string;
+};
+
+type AdminAlertUpdateResponse = {
+  success: boolean;
+  data: AdminAlert;
+  message?: string;
+};
+
+export async function getAdminAlerts(
+  token: string,
+  params?: { status?: string; severity?: string; type?: string }
+): Promise<AdminAlert[]> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.severity) qs.set("severity", params.severity);
+  if (params?.type) qs.set("type", params.type);
+
+  const res = await fetch(
+    `${API_BASE_URL}/api/security/alerts${qs.toString() ? `?${qs.toString()}` : ""}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Failed to load alerts: ${res.status} ${res.statusText} – ${text}`);
+  }
+
+  const json = (await res.json()) as AdminAlertsResponse;
+  if (!json.success) throw new Error(json.message || "Failed to load alerts");
+
+  return json.data;
+}
+
+// Update alert status (e.g., to ACKNOWLEDGED or RESOLVED)
+export async function updateAlertStatus(
+  token: string,
+  alertId: string,
+  status: AlertStatus
+): Promise<AdminAlert> {
+  const res = await fetch(`${API_BASE_URL}/api/security/alerts/${alertId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    credentials: "include",
+    body: JSON.stringify({ status }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Failed to update alert: ${res.status} ${res.statusText} – ${text}`);
+  }
+
+  const json = (await res.json()) as AdminAlertUpdateResponse;
+  if (!json.success) throw new Error(json.message || "Failed to update alert");
+
+  return json.data;
 }

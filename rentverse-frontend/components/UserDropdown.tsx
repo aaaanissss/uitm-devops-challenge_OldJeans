@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import clsx from 'clsx'
-import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield } from 'lucide-react'
+import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import useCurrentUser from '@/hooks/useCurrentUser'
 
@@ -90,14 +90,16 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
   const initials = getInitials(user?.firstName || '', user?.lastName || '')
 
   return (
-    <div
-      ref={dropdownRef}
-      className={clsx([
-        'absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg',
-        'border border-slate-200 py-3 z-50',
-        className
-      ])}
-    >
+      <div
+        ref={dropdownRef}
+        className={clsx([
+          'absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg',
+          'border border-slate-200 z-50',
+          'max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col',
+          className
+        ])}
+      >
+
       {/* Welcome Header with Profile Photo */}
       <div className="px-4 py-4 border-b border-slate-100">
         <div className="flex items-center space-x-3">
@@ -126,7 +128,7 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
       </div>
 
       {/* Menu Items */}
-      <div className="py-2">
+      <div className="py-2 overflow-y-auto">
         {/* Customer Mode */}
         <div className="px-4 py-2">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer Mode</p>
@@ -195,6 +197,14 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
               <Shield size={18} className="mr-3 text-slate-400" />
               <span className="font-medium">Admin Dashboard</span>
             </Link>
+            <Link
+              href="/admin/security/alerts"
+              onClick={onClose}
+              className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
+            >
+              <Bell size={18} className="mr-3 text-slate-400" />
+              <span className="font-medium">Security Alerts</span> {/* Admin Security Alerts for Task 4 */}
+            </Link>
           </>
         )}
 
@@ -210,7 +220,14 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <User size={18} className="mr-3 text-slate-400" />
           <span className="font-medium">Account</span>
         </Link>
-        
+        <Link
+          href="/account/security" 
+          onClick={onClose}
+          className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
+        >
+          <Shield size={18} className="mr-3 text-slate-400" />
+          <span className="font-medium">Security</span> {/* User Security Activity for Task 4 */}
+        </Link>
         <Link
           href="/account/settings"
           onClick={onClose}
@@ -222,7 +239,7 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
       </div>
 
       {/* Logout */}
-      <div className="border-t border-slate-100 py-2">
+      <div className="border-t border-slate-100 py-2 mt-auto bg-white">
         <button
           onClick={handleLogout}
           className="flex items-center w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200"

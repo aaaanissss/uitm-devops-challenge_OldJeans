@@ -1,69 +1,41 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import ContentWrapper from "@/components/ContentWrapper";
+import AuthGuard from "@/components/AuthGuard";
+
 import { SecurityActivityLog } from "@/components/security/SecurityActivityLog";
 import {
   getMySecurityActivities,
   reportSuspiciousActivity,
   type SecurityActivity,
 } from "@/lib/security/securityApi";
-
 import useAuthStore from "@/stores/authStore";
 
 export default function AccountSecurityPage() {
-  // Auth state from Zustand
   const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
 
   const [activities, setActivities] = useState<SecurityActivity[]>([]);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isReporting, setIsReporting] = useState(false);
-  const [token, setToken] = useState<string | null>(null);
+  const [isReportingId, setIsReportingId] = useState<string | null>(null);
 
-  const handleReport = async (activity: SecurityActivity) => {
-    if (typeof window === "undefined") return;
+  const visibleActivities = useMemo(() => {
+    return activities.filter((a) => {
+      if (!a.alerts || a.alerts.length === 0) return true;
 
-    const token = localStorage.getItem("authToken");
-    if (!token) {
-        setError("Missing auth token. Please log in again.");
-        return;
-    }
+      // hide if ALL alerts are resolved
+      return !a.alerts.every((alert) => alert.status === "RESOLVED");
+    });
+  }, [activities]);
 
-    try {
-        setIsReporting(true);
-        setError(null);
-
-        await reportSuspiciousActivity(token, activity.id);
-
-        // Very simple UX for now – you can replace with a toast
-        alert("Thanks, we have flagged this activity for review.");
-    } catch (err: any) {
-        console.error("[AccountSecurityPage] report error:", err);
-        setError(err?.message || "Failed to report suspicious activity.");
-    } finally {
-        setIsReporting(false);
-    }
-    };
-
-  // Debug: see when page mounts and what auth state looks like
   useEffect(() => {
-    console.log(
-      "[AccountSecurityPage] mounted. user:",
-      user,
-      "isLoggedIn:",
-      isLoggedIn
-    );
-  }, [user, isLoggedIn]);
-
-  // Make sure auth is initialized (extra safety, even though AuthInitializer runs globally)
-  useEffect(() => {
-    console.log("[AccountSecurityPage] calling initializeAuth");
     initializeAuth();
   }, [initializeAuth]);
 
-  // Fetch security activities once we know user is logged in
   useEffect(() => {
     if (!isLoggedIn) {
       setIsLoading(false);
@@ -71,9 +43,7 @@ export default function AccountSecurityPage() {
     }
 
     const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("authToken")
-        : null;
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
 
     if (!token) {
       setError("Missing auth token. Please log in again.");
@@ -83,69 +53,81 @@ export default function AccountSecurityPage() {
 
     let mounted = true;
 
-    async function load(authToken: string) {
+    (async () => {
       try {
         setIsLoading(true);
         setError(null);
-
-        console.log("[AccountSecurityPage] fetching activities with token");
-        const data = await getMySecurityActivities(authToken);
-        if (mounted) {
-          console.log(
-            "[AccountSecurityPage] fetched activities:",
-            data.length
-          );
-          setActivities(data);
-        }
+        const data = await getMySecurityActivities(token);
+        if (!mounted) return;
+        setActivities(data);
       } catch (err: any) {
-        console.error("[AccountSecurityPage] load error:", err);
-        if (mounted) {
-          setError(err?.message || "Failed to load security data");
-        }
+        if (!mounted) return;
+        setError(err?.message || "Failed to load security data");
       } finally {
         if (mounted) setIsLoading(false);
       }
-    }
-
-    load(token);
+    })();
 
     return () => {
       mounted = false;
     };
   }, [isLoggedIn]);
 
-  // If not logged in, show a friendly message instead of redirecting
-  if (!isLoggedIn) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 pb-8 pt-6">
-        <h1 className="text-xl font-semibold text-slate-900">
-          Security Activity
-        </h1>
-        <p className="text-sm text-slate-500 mb-4">
-          You need to be logged in to view your security activity.
-        </p>
-        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          Please log in again and then return to this page.
-        </div>
-      </div>
-    );
-  }
+  const handleReport = async (activity: SecurityActivity) => {
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
+
+    if (!token) {
+      setError("Missing auth token. Please log in again.");
+      return;
+    }
+
+    // already reported
+    if (reportedIds.has(activity.id)) return;
+
+    try {
+      setIsReportingId(activity.id);
+      setError(null);
+
+      await reportSuspiciousActivity(token, activity.id);
+
+      // ✅ mark as reported locally (frontend badge + disable button)
+      setReportedIds((prev) => {
+        const next = new Set(prev);
+        next.add(activity.id);
+        return next;
+      });
+
+      alert("Thanks, we have flagged this activity for review.");
+    } catch (err: any) {
+      console.error("[AccountSecurityPage] report error:", err);
+      setError(err?.message || "Failed to report suspicious activity.");
+    } finally {
+      setIsReportingId(null);
+    }
+  };
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pb-8 pt-6">
-      <h1 className="text-xl font-semibold text-slate-900">
-        Security Activity
-      </h1>
-      <p className="text-sm text-slate-500">
-        Review recent logins and security events related to your account.
-      </p>
+    <AuthGuard requireAuth={true} redirectTo="/auth">
+      <ContentWrapper>
+        <div className="mx-auto max-w-4xl px-4 pb-8 pt-6">
+          <h1 className="text-xl font-semibold text-slate-900">
+            Security Activity
+          </h1>
+          <p className="text-sm text-slate-500">
+            Review recent logins and security events related to your account.
+          </p>
 
-      <SecurityActivityLog
-        activities={activities}
-        isLoading={isLoading}
-        error={error}
-        onReport={handleReport}
-      />
-    </div>
+          <SecurityActivityLog
+            activities={visibleActivities}
+            isLoading={isLoading}
+            error={error}
+            onReport={handleReport}
+            reportedIds={reportedIds}          // ✅ new
+            reportingId={isReportingId}        // ✅ new
+          />
+        </div>
+      </ContentWrapper>
+    </AuthGuard>
   );
 }

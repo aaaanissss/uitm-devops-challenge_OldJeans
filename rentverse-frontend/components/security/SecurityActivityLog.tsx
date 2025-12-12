@@ -8,6 +8,10 @@ type Props = {
   isLoading: boolean;
   error: string | null;
   onReport?: (activity: SecurityActivity) => void;
+
+  // New prop to indicate which activities are being reported
+  reportedIds?: Set<string>;   
+  reportingId?: string | null;  
 };
 
 function formatDateTime(iso: string) {
@@ -60,6 +64,8 @@ export function SecurityActivityLog({
   isLoading,
   error,
   onReport,
+  reportedIds,
+  reportingId,
 }: Props) {
   if (isLoading) {
     return (
@@ -105,6 +111,9 @@ export function SecurityActivityLog({
             ? activity.metadata.email
             : undefined;
 
+        const isReported = reportedIds?.has(activity.id) ?? false;
+        const isReporting = reportingId === activity.id;
+
         return (
           <div
             key={activity.id}
@@ -120,6 +129,11 @@ export function SecurityActivityLog({
                 </span>
                 {email && (
                   <span className="text-xs text-slate-500">({email})</span>
+                )}
+                {isReported && (
+                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    Reported
+                  </span>
                 )}
               </div>
               <span className="text-xs text-slate-500">
@@ -145,13 +159,14 @@ export function SecurityActivityLog({
             </div>
 
             {onReport && (
-              <div className="mt-1">
+              <div>
                 <button
                   type="button"
-                  className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-100"
                   onClick={() => onReport(activity)}
+                  disabled={isReported || isReporting}
+                  className="mt-2 inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  This wasn&apos;t me
+                  {isReported ? "Reported" : isReporting ? "Reporting..." : "This wasn’t me"}
                 </button>
               </div>
             )}
