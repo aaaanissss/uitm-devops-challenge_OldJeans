@@ -15,10 +15,13 @@ export interface SecurityActivity {
   metadata: Record<string, any> | null;
   createdAt: string;
   
+  /*
   alerts?: {
     id: string;
     status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
   }[];
+  */
+  alerts?: SecurityActivityAlert[];
 }
 
 interface SecurityActivityResponse {
@@ -38,6 +41,16 @@ export type SecurityAlert = {
   createdAt: string;
   resolvedAt: string | null;
 };
+
+export interface SecurityActivityAlert {
+  id: string;
+  status: "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+  resolvedAt?: string | null;
+  createdAt?: string;
+  type?: string;
+  severity?: string;
+  description?: string;
+}
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || "";

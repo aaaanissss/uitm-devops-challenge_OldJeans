@@ -156,12 +156,17 @@ router.get('/me/activities', auth, async (req, res) => {
         alerts: {
           select: {
             id: true,
-            status: true, // OPEN | ACKNOWLEDGED | RESOLVED
+            status: true,      // OPEN | ACKNOWLEDGED | RESOLVED
+            resolvedAt: true,  
+            createdAt: true,   
+            type: true,        
+            severity: true,    
+            description: true, 
           },
+          orderBy: { createdAt: "desc" }, // optional: latest first
         },
       },
     });
-
     return res.json({
       success: true,
       data: logs,

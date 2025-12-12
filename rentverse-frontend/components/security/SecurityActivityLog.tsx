@@ -9,9 +9,9 @@ type Props = {
   error: string | null;
   onReport?: (activity: SecurityActivity) => void;
 
-  // New prop to indicate which activities are being reported
-  reportedIds?: Set<string>;   
-  reportingId?: string | null;  
+  // Local UI-state (optional)
+  reportedIds?: Set<string>;
+  reportingId?: string | null;
 };
 
 function formatDateTime(iso: string) {
@@ -59,6 +59,55 @@ function getEventLabel(eventType: string) {
   }
 }
 
+type AlertStatus = "OPEN" | "ACKNOWLEDGED" | "RESOLVED";
+
+function getAlertState(activity: any): {
+  hasAlerts: boolean;
+  state: "NONE" | "REPORTED" | "ACKNOWLEDGED" | "RESOLVED";
+  resolvedAt?: string | null;
+} {
+  const alerts = Array.isArray(activity?.alerts) ? activity.alerts : [];
+  if (alerts.length === 0) return { hasAlerts: false, state: "NONE", resolvedAt: null };
+
+  const statuses = alerts.map((a: any) => String(a.status || "").toUpperCase()) as AlertStatus[];
+
+  const allResolved = statuses.length > 0 && statuses.every((s) => s === "RESOLVED");
+  const anyAck = statuses.some((s) => s === "ACKNOWLEDGED");
+
+  // latest resolvedAt (if any)
+  const resolvedTimes = alerts
+    .map((a: any) => a?.resolvedAt)
+    .filter(Boolean) as string[];
+
+  const latestResolvedAt =
+    resolvedTimes.length > 0
+      ? resolvedTimes.sort((a, b) => +new Date(b) - +new Date(a))[0]
+      : null;
+
+  if (allResolved) return { hasAlerts: true, state: "RESOLVED", resolvedAt: latestResolvedAt };
+  if (anyAck) return { hasAlerts: true, state: "ACKNOWLEDGED", resolvedAt: null };
+  return { hasAlerts: true, state: "REPORTED", resolvedAt: null };
+}
+
+function alertBadge(state: "REPORTED" | "ACKNOWLEDGED" | "RESOLVED") {
+  if (state === "REPORTED") {
+    return {
+      text: "Reported",
+      cls: "border-blue-200 bg-blue-50 text-blue-700",
+    };
+  }
+  if (state === "ACKNOWLEDGED") {
+    return {
+      text: "Acknowledged",
+      cls: "border-amber-200 bg-amber-50 text-amber-700",
+    };
+  }
+  return {
+    text: "Resolved",
+    cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  };
+}
+
 export function SecurityActivityLog({
   activities,
   isLoading,
@@ -97,9 +146,7 @@ export function SecurityActivityLog({
         const { label, badgeClass, icon } = getEventLabel(activity.eventType);
 
         const location =
-          activity.geoLocation ??
-          activity.ipAddress ??
-          "Location/IP not available";
+          activity.geoLocation ?? activity.ipAddress ?? "Location/IP not available";
 
         const device =
           activity.userAgent && activity.userAgent.length > 0
@@ -107,12 +154,22 @@ export function SecurityActivityLog({
             : "Unknown device";
 
         const email =
-          typeof activity.metadata?.email === "string"
-            ? activity.metadata.email
-            : undefined;
+          typeof activity.metadata?.email === "string" ? activity.metadata.email : undefined;
 
-        const isReported = reportedIds?.has(activity.id) ?? false;
+        // NEW: derive status from backend alerts (if your API includes alerts)
+        const { state, resolvedAt } = getAlertState(activity);
+
+        // Local immediate feedback still supported
+        const locallyReported = reportedIds?.has(activity.id) ?? false;
+
+        const isReportedLike =
+          locallyReported || state === "REPORTED" || state === "ACKNOWLEDGED" || state === "RESOLVED";
+
+        const isResolved = state === "RESOLVED";
         const isReporting = reportingId === activity.id;
+
+        const statusBadge =
+          state === "NONE" ? null : alertBadge(state as "REPORTED" | "ACKNOWLEDGED" | "RESOLVED");
 
         return (
           <div
@@ -120,40 +177,49 @@ export function SecurityActivityLog({
             className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white p-3 text-sm shadow-sm"
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span
                   className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}
                 >
                   <span>{icon}</span>
                   <span>{label}</span>
                 </span>
-                {email && (
-                  <span className="text-xs text-slate-500">({email})</span>
-                )}
-                {isReported && (
-                  <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                    Reported
+
+                {email && <span className="text-xs text-slate-500">({email})</span>}
+
+                {/* NEW: status badge based on alerts */}
+                {statusBadge && (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadge.cls}`}
+                  >
+                    {statusBadge.text}
                   </span>
                 )}
               </div>
-              <span className="text-xs text-slate-500">
-                {formatDateTime(activity.createdAt)}
-              </span>
+
+              <span className="text-xs text-slate-500">{formatDateTime(activity.createdAt)}</span>
             </div>
 
             <div className="flex flex-col gap-1 text-xs text-slate-600">
               <div>
-                <span className="font-medium text-slate-700">Location/IP:</span>{" "}
-                {location}
+                <span className="font-medium text-slate-700">Location/IP:</span> {location}
               </div>
               <div>
-                <span className="font-medium text-slate-700">Device:</span>{" "}
-                {device}
+                <span className="font-medium text-slate-700">Device:</span> {device}
               </div>
+
               {activity.metadata?.reason && (
                 <div>
                   <span className="font-medium text-slate-700">Reason:</span>{" "}
                   {String(activity.metadata.reason)}
+                </div>
+              )}
+
+              {/* NEW: show resolved time if available */}
+              {isResolved && resolvedAt && (
+                <div>
+                  <span className="font-medium text-slate-700">Resolved at:</span>{" "}
+                  {formatDateTime(resolvedAt)}
                 </div>
               )}
             </div>
@@ -163,10 +229,16 @@ export function SecurityActivityLog({
                 <button
                   type="button"
                   onClick={() => onReport(activity)}
-                  disabled={isReported || isReporting}
+                  disabled={isReportedLike || isReporting}
                   className="mt-2 inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  {isReported ? "Reported" : isReporting ? "Reporting..." : "This wasn’t me"}
+                  {isResolved
+                    ? "Resolved"
+                    : isReportedLike
+                    ? "Reported"
+                    : isReporting
+                    ? "Reporting..."
+                    : "This wasn’t me"}
                 </button>
               </div>
             )}

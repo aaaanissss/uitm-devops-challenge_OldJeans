@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ContentWrapper from "@/components/ContentWrapper";
 import AuthGuard from "@/components/AuthGuard";
 
@@ -13,7 +13,6 @@ import {
 import useAuthStore from "@/stores/authStore";
 
 export default function AccountSecurityPage() {
-  const user = useAuthStore((s) => s.user);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const initializeAuth = useAuthStore((s) => s.initializeAuth);
 
@@ -22,15 +21,6 @@ export default function AccountSecurityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReportingId, setIsReportingId] = useState<string | null>(null);
-
-  const visibleActivities = useMemo(() => {
-    return activities.filter((a) => {
-      if (!a.alerts || a.alerts.length === 0) return true;
-
-      // hide if ALL alerts are resolved
-      return !a.alerts.every((alert) => alert.status === "RESOLVED");
-    });
-  }, [activities]);
 
   useEffect(() => {
     initializeAuth();
@@ -82,7 +72,6 @@ export default function AccountSecurityPage() {
       return;
     }
 
-    // already reported
     if (reportedIds.has(activity.id)) return;
 
     try {
@@ -91,7 +80,6 @@ export default function AccountSecurityPage() {
 
       await reportSuspiciousActivity(token, activity.id);
 
-      // ✅ mark as reported locally (frontend badge + disable button)
       setReportedIds((prev) => {
         const next = new Set(prev);
         next.add(activity.id);
@@ -119,12 +107,12 @@ export default function AccountSecurityPage() {
           </p>
 
           <SecurityActivityLog
-            activities={visibleActivities}
+            activities={activities}         
             isLoading={isLoading}
             error={error}
             onReport={handleReport}
-            reportedIds={reportedIds}          // ✅ new
-            reportingId={isReportingId}        // ✅ new
+            reportedIds={reportedIds}
+            reportingId={isReportingId}
           />
         </div>
       </ContentWrapper>
