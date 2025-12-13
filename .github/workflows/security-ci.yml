@@ -36,36 +36,34 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
-      # For monorepos, autobuild is safest as a start.
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3
-        continue-on-error: true # Continue even if there are code scanning alerts
+        continue-on-error: true
 
-  # Backend dependency audit (pnpm)
   backend-deps:
     name: Dependency Scan - Backend (pnpm audit)
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: rentverse-backend
-      steps:
-        - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-        - name: Setup Node
-          uses: actions/setup-node@v4
-          with:
-            node-version: 20
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-        - name: Enable pnpm
-          run: |
-            corepack enable
-            corepack prepare pnpm@9 --activate
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9 --activate
 
-        - name: Install deps
-          run: pnpm install --frozen-lockfile
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
 
-        - name: Audit (fail on high+)
-          run: pnpm audit --audit-level=high
+      - name: Audit (fail on high+)
+        run: pnpm audit --audit-level=high
