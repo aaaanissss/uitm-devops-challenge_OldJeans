@@ -1,4 +1,4 @@
-name: CI Starter
+name: Task 6 - CI/CD Security Testing
 
 on:
   pull_request:
@@ -6,15 +6,17 @@ on:
     branches: [ main ]
 
 jobs:
-  hello:
+  secrets-scan:
+    name: Secrets Scan (Gitleaks)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # important: scan full git history
 
-      - name: Show folders
-        run: |
-          echo "Repo root:"
-          ls -la
-          echo "Subprojects:"
-          ls -la rentverse-frontend rentverse-backend rentverse-ai-service
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
