@@ -41,9 +41,9 @@ jobs:
 
       - name: Analyze
         uses: github/codeql-action/analyze@v3
-        continue-on-error: true
-
-  backend-deps:
+        continue-on-error: true # Continue even if there are code scanning alerts
+  
+  backend-deps: # Backend dependency audit (pnpm)
     name: Dependency Scan - Backend (pnpm audit)
     runs-on: ubuntu-latest
     defaults:
@@ -64,6 +64,8 @@ jobs:
 
       - name: Install deps
         run: pnpm install --frozen-lockfile
+        env:
+          HUSKY: 0 # Disable husky hooks during CI install
 
       - name: Audit (fail on high+)
         run: pnpm audit --audit-level=high
