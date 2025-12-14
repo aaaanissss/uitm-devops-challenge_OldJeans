@@ -3,7 +3,7 @@
 import React, { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import clsx from 'clsx'
-import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell, FileText } from 'lucide-react'
+import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell, FileText, KeyRound } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import useCurrentUser from '@/hooks/useCurrentUser'
 
@@ -225,8 +225,8 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           onClick={onClose}
           className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
         >
-          <User size={18} className="mr-3 text-slate-400" />
-          <span className="font-medium">Account</span>
+          <KeyRound size={18} className="mr-3 text-slate-400" />
+          <span className="font-medium">MFA Setup</span>
         </Link>
         <Link
           href="/account/security" 
