@@ -1,4 +1,4 @@
-name: Task 6 - CI/CD Security Testing
+name: CI/CD Security Testing
 
 on:
   pull_request:
