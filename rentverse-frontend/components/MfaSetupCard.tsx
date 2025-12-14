@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import ButtonFilled from '@/components/ButtonFilled'
 import BoxError from '@/components/BoxError'
@@ -16,19 +16,23 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
   const [error, setError] = useState<string | null>(null)
   const [isEnabled, setIsEnabled] = useState(mfaEnabled ?? false)
 
+  useEffect(() => {
+    setIsEnabled(!!mfaEnabled)
+  }, [mfaEnabled])
+
   const handleStartSetup = async () => {
     try {
-      setIsLoading(true)
-      setError(null)
-      setSuccessMessage(null)
+        setIsLoading(true)
+        setError(null)
+        setSuccessMessage(null)
 
       const data = await AuthApiClient.setupMfa()
-      setQrCode(data.qrCode)
-      setSecret(data.secret)
+        setQrCode(data.qrCode)
+        setSecret(data.secret)
     } catch (e: any) {
-      setError(e.message || 'Failed to start MFA setup')
+        setError(e.message || 'Failed to start MFA setup')
     } finally {
-      setIsLoading(false)
+        setIsLoading(false)
     }
   }
 
@@ -36,7 +40,7 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
     e.preventDefault()
     if (code.length !== 6) {
       setError('Please enter the 6-digit code')
-      return
+    return
     }
 
     try {
@@ -44,11 +48,15 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
       setError(null)
 
       await AuthApiClient.confirmMfa(code)
-      setSuccessMessage('MFA enabled successfully for your account.')
+        setIsEnabled(true)
+        setSuccessMessage('MFA enabled successfully for your account.')
+        setQrCode(null)
+        setSecret(null)
+        setCode('')
     } catch (e: any) {
-      setError(e.message || 'Failed to verify MFA code')
+        setError(e.message || 'Failed to verify MFA code')
     } finally {
-      setIsConfirming(false)
+        setIsConfirming(false)
     }
   }
 
@@ -80,9 +88,38 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
             You&apos;ll need an authenticator app (Google Authenticator, Authy,
             1Password, etc.) to set this up.
           </p>
-          <ButtonFilled onClick={handleStartSetup} disabled={isLoading}>
-            {isLoading ? 'Generating QR code…' : 'Enable MFA'}
-          </ButtonFilled>
+
+          {isEnabled ? (
+            <ButtonFilled
+              onClick={async () => {
+                try {
+                  setIsLoading(true)
+                  setError(null)
+                  setSuccessMessage(null)
+
+                  await AuthApiClient.disableMfa()
+
+                  setIsEnabled(false)
+                  setQrCode(null)
+                  setSecret(null)
+                  setCode('')
+                  setSuccessMessage('MFA has been disabled.')
+                } catch (e: any) {
+                  setError(e.message || 'Failed to disable MFA')
+                } finally {
+                  setIsLoading(false)
+                }
+              }}
+              disabled={isLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isLoading ? 'Disabling…' : 'Disable MFA'}
+            </ButtonFilled>
+          ) : (
+            <ButtonFilled onClick={handleStartSetup} disabled={isLoading}>
+              {isLoading ? 'Generating QR code…' : 'Enable MFA'}
+            </ButtonFilled>
+          )}
         </div>
       ) : (
         <>
