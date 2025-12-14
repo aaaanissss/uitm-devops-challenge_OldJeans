@@ -187,7 +187,6 @@ export function SecurityActivityLog({
 
                 {email && <span className="text-xs text-slate-500">({email})</span>}
 
-                {/* NEW: status badge based on alerts */}
                 {statusBadge && (
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${statusBadge.cls}`}

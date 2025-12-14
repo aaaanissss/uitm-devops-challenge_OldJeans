@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import ContentWrapper from "@/components/ContentWrapper";
 import AuthGuard from "@/components/AuthGuard";
+import SecuritySummary from "@/components/security/SecuritySummary";
 
 import { SecurityActivityLog } from "@/components/security/SecurityActivityLog";
 import {
@@ -99,6 +100,7 @@ export default function AccountSecurityPage() {
     <AuthGuard requireAuth={true} redirectTo="/auth">
       <ContentWrapper>
         <div className="mx-auto max-w-4xl px-4 pb-8 pt-6">
+
           <h1 className="text-xl font-semibold text-slate-900">
             Security Activity
           </h1>
@@ -106,14 +108,19 @@ export default function AccountSecurityPage() {
             Review recent logins and security events related to your account.
           </p>
 
+          {/* Top security cards */}
+          <SecuritySummary />
+
+          {/* Activity log */}
           <SecurityActivityLog
-            activities={activities}         
+            activities={activities}
             isLoading={isLoading}
             error={error}
             onReport={handleReport}
             reportedIds={reportedIds}
             reportingId={isReportingId}
           />
+
         </div>
       </ContentWrapper>
     </AuthGuard>
