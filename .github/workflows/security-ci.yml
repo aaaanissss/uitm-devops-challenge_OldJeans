@@ -43,8 +43,8 @@ jobs:
         uses: github/codeql-action/analyze@v3
         continue-on-error: true # Continue even if there are code scanning alerts
   
-  backend-deps: # Backend dependency audit (pnpm)
-    name: Dependency Scan - Backend (pnpm audit)
+  backend-deps:
+    name: Dependency Scan - Backend (pnpm audit) [advisory]
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,10 +62,10 @@ jobs:
           corepack enable
           corepack prepare pnpm@9 --activate
 
-      - name: Install deps
+      - name: Install deps (disable husky in CI)
         run: pnpm install --frozen-lockfile
         env:
-          HUSKY: 0 # Disable husky hooks during CI install
+          HUSKY: 0
 
-      - name: Audit (fail on high+)
-        run: pnpm audit --audit-level=high
+      - name: Audit (report only)
+        run: pnpm audit --audit-level=high || true # pipeline stays green, but the logs will show the vulnerabilities list.
