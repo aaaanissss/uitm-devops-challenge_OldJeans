@@ -9,33 +9,44 @@ const { connectDB } = require('./config/database');
 const swaggerSpecs = require('./config/swagger');
 const sessionMiddleware = require('./middleware/session');
 
+// [NEW] Import Security Middleware
+const { apiLimiter, enforceHTTPS } = require('./middleware/security');
+
 const app = express();
 
 // Ngrok and proxy handling middleware
 app.use((req, res, next) => {
-  // Trust ngrok proxy
-  app.set('trust proxy', true);
-
-  // Handle ngrok headers
+  app.set('trust proxy', true); // Essential for rate-limit and https-check to work behind proxies
   if (req.headers['x-forwarded-proto']) {
     req.protocol = req.headers['x-forwarded-proto'];
   }
-
   if (req.headers['x-forwarded-host']) {
     req.headers.host = req.headers['x-forwarded-host'];
   }
-
   next();
 });
+
+// [NEW] 1. Apply Conditional HTTPS (Must be before other middleware)
+app.use(enforceHTTPS);
 
 // Connect to database
 connectDB();
 
-// Middleware
+// [NEW] 2. Apply Rate Limiting (Global limiter for all API routes)
+// You can also apply this specifically to /api/auth if you prefer
+app.use('/api', apiLimiter);
+
+// [MODIFIED] 3. Secure Headers (Helmet)
+// specific HSTS config for production security
 app.use(
   helmet({
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    // Only enable HSTS (Strict-Transport-Security) in production
+    hsts:
+      process.env.NODE_ENV === 'production'
+        ? { maxAge: 31536000, includeSubDomains: true, preload: true }
+        : false,
   })
 );
 
@@ -210,7 +221,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/property-types', propertyTypeRoutes);
 app.use('/api/amenities', amenityRoutes);
 app.use('/api/predictions', predictionRoutes);
-app.use('/api/security', securityRoutes); 
+app.use('/api/security', securityRoutes);
 
 /**
  * @swagger
