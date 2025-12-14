@@ -68,4 +68,24 @@ jobs:
           HUSKY: 0
 
       - name: Audit (report only)
-        run: pnpm audit --audit-level=high || true # pipeline stays green, but the logs will show the vulnerabilities list.
+        run: pnpm audit --audit-level=high || true # advisoryy: pipeline stays green, but the logs will show the vulnerabilities list.
+
+  frontend-deps:
+    name: Dependency Scan - Frontend (bun audit) [advisory]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rentverse-frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun 
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install deps # installs frontend deps using Bun
+        run: bun install --frozen-lockfile
+
+      - name: Audit (report only)
+        run: bun audit || true # advisory: pipeline stays green, but the logs will show the vulnerabilities list.
