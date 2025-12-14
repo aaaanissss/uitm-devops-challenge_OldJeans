@@ -266,6 +266,84 @@ class BookingsController {
   }
 
   /**
+   * Digitally sign the rental agreement
+   * Implements OWASP M6 (Broken Access Control) checks
+   */
+  async signAgreement(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          message: 'Validation failed',
+          errors: errors.array(),
+        });
+      }
+
+      const bookingId = req.params.id;
+      const { signatureData } = req.body;
+      const userId = req.user.id;
+
+      // We pass the logic to the service, but we handle the security exceptions here
+      const result = await bookingsService.signAgreement(
+        bookingId,
+        userId,
+        signatureData
+      );
+
+      res.json({
+        success: true,
+        message: 'Agreement signed successfully',
+        data: result,
+      });
+    } catch (error) {
+      console.error('Sign agreement error:', error);
+
+      // 1. Resource Not Found
+      if (error.message.includes('not found')) {
+        return res.status(404).json({
+          success: false,
+          message: error.message,
+        });
+      }
+
+      // 2. Workflow Validation (OWASP): Cannot sign if not APPROVED
+      if (error.message.includes('must be APPROVED')) {
+        return res.status(409).json({
+          // 409 Conflict with current state
+          success: false,
+          message: 'Workflow Error: Booking must be APPROVED before signing.',
+        });
+      }
+
+      // 3. Access Control (OWASP): User is not part of this booking
+      if (
+        error.message.includes('authorized') ||
+        error.message.includes('Access denied')
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            'Security Error: You are not authorized to sign this document.',
+        });
+      }
+
+      // 4. Integrity: Already signed
+      if (error.message.includes('already signed')) {
+        return res.status(400).json({
+          success: false,
+          message: 'This document has already been signed by you.',
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error processing signature',
+      });
+    }
+  }
+
+  /**
    * Get property booked periods (for calendar view)
    */
   async getPropertyBookedPeriods(req, res) {

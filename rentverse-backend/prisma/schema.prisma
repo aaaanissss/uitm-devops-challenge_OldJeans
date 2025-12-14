@@ -148,6 +148,13 @@ model PropertyAmenity {
   @@map("property_amenities")
 }
 
+/// [NEW] Status for the agreement document specifically
+enum AgreementStatus {
+  PENDING_SIGNATURES // Document generated, waiting for signs
+  PARTIALLY_SIGNED   // One party signed
+  FULLY_SIGNED       // Both parties signed
+}
+
 /// Log review listing oleh admin (simple audit trail).
 model ListingApproval {
   id         String         @id @default(uuid())
@@ -237,11 +244,20 @@ model RentalAgreement {
   fileName    String?  // Nama file untuk display
   fileSize    Int?     // Size dalam bytes
   generatedAt DateTime @default(now())
+  
+  // [NEW] Signature Tracking
+  status            AgreementStatus @default(PENDING_SIGNATURES)
+  
+  tenantSignature   String?   // Base64 string or URL to signature image
+  tenantSignedAt    DateTime?
+  
+  landlordSignature String?   // Base64 string or URL to signature image
+  landlordSignedAt  DateTime?
+
   lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
 
   @@map("rental_agreements")
 }
-
 /// Log prediksi harga (input mentah, harga prediksi, confidence, versi model).
 model PricePrediction {
   id             String    @id @default(uuid())
