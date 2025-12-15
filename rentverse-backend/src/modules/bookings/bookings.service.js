@@ -881,6 +881,106 @@ class BookingsService {
       throw error;
     }
   }
-}
+
+  /**
+   * 🔒 SECURE SIGNATURE LOGIC
+   * Validates Identity, Workflow Status, and prevents Double-Signing.
+   * @param {string} bookingId
+   * @param {string} userId
+   * @param {string} signatureData - Base64 signature string
+   * @returns {Promise<Object>}
+   */
+  async signAgreement(bookingId, userId, signatureData) {
+    // 1. Fetch Booking and Agreement to validate existence
+    const booking = await prisma.lease.findUnique({
+      where: { id: bookingId },
+      include: { agreement: true }, // Include the agreement relation
+    });
+
+    if (!booking) {
+      throw new Error('Booking not found');
+    }
+
+    // 2. Workflow Validation: Cannot sign if not Approved
+    // This prevents users from signing old/rejected contracts
+    if (booking.status !== 'APPROVED' && booking.status !== 'ACTIVE') {
+      throw new Error(
+        'Workflow Violation: Booking must be APPROVED to sign agreement'
+      );
+    }
+
+    // 3. Ensure the agreement record exists (Create placeholder if missing)
+    // We use upsert later, so we just need to identify the ID logic here.
+    // If no agreement exists yet, we will create one during the update step.
+
+    const now = new Date();
+    let isTenant = false;
+    let isLandlord = false;
+
+    // 4. Access Control & Integrity Logic
+    // Identify if the signer is the Tenant or Landlord
+    if (userId === booking.tenantId) {
+      isTenant = true;
+    } else if (userId === booking.landlordId) {
+      isLandlord = true;
+    } else {
+      // -- UNAUTHORIZED USER --
+      throw new Error(
+        'Access denied: You are not authorized to sign this agreement'
+      );
+    }
+
+    // Check Integrity (Prevent Double Signing) using the existing agreement data if it exists
+    if (booking.agreement) {
+      if (isTenant && booking.agreement.tenantSignedAt) {
+        throw new Error(
+          'Integrity Error: You have already signed this agreement'
+        );
+      }
+      if (isLandlord && booking.agreement.landlordSignedAt) {
+        throw new Error(
+          'Integrity Error: You have already signed this agreement'
+        );
+      }
+    }
+
+    // 5. Calculate New Status
+    // If I am signing now, check if the *other* party has already signed.
+    const currentAgreement = booking.agreement || {};
+    const otherPartySigned = isTenant
+      ? currentAgreement.landlordSignedAt
+      : currentAgreement.tenantSignedAt;
+
+    const newStatus = otherPartySigned ? 'FULLY_SIGNED' : 'PARTIALLY_SIGNED';
+
+    // 6. Commit the signature to Database (Using upsert to handle missing records)
+    // This replaces the PDF generation step to prevent the crash
+    const updatedAgreement = await prisma.rentalAgreement.upsert({
+      where: { leaseId: bookingId },
+      update: {
+        status: newStatus,
+        [isTenant ? 'tenantSignature' : 'landlordSignature']: signatureData,
+        [isTenant ? 'tenantSignedAt' : 'landlordSignedAt']: now,
+      },
+      create: {
+        leaseId: bookingId,
+        status: newStatus,
+        [isTenant ? 'tenantSignature' : 'landlordSignature']: signatureData,
+        [isTenant ? 'tenantSignedAt' : 'landlordSignedAt']: now,
+        // Add dummy values for required fields since we aren't generating the real PDF yet
+        fileName: `agreement-${bookingId}.pdf`,
+        fileSize: 0,
+        pdfUrl: 'pending_generation',
+      },
+    });
+
+    return {
+      agreementId: updatedAgreement.id,
+      status: updatedAgreement.status,
+      signedAt: now,
+      role: isTenant ? 'TENANT' : 'LANDLORD',
+    };
+  }
+} // End of Class
 
 module.exports = new BookingsService();

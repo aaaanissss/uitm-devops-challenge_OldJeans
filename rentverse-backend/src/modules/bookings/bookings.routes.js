@@ -445,4 +445,53 @@ router.get(
   bookingsController.downloadRentalAgreementPDF
 );
 
+/**
+ * @swagger
+ * /api/bookings/{id}/sign:
+ *   post:
+ *     summary: Digitally sign the rental agreement
+ *     description: Allows Tenant or Landlord to sign. Enforces workflow validation (Booking must be APPROVED).
+ *     tags: [Bookings]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Booking ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - signatureData
+ *             properties:
+ *               signatureData:
+ *                 type: string
+ *                 description: Base64 string of the signature image or cryptographic hash
+ *     responses:
+ *       200:
+ *         description: Agreement signed successfully
+ *       403:
+ *         description: Workflow violation (e.g., Booking not approved, or user not authorized)
+ *       400:
+ *         description: Validation error
+ */
+
+router.post(
+  '/:id/sign',
+  auth,
+  [
+    body('signatureData')
+      .notEmpty()
+      .withMessage('Signature data is required')
+      .isString(),
+  ],
+  bookingsController.signAgreement
+);
+
 module.exports = router;
