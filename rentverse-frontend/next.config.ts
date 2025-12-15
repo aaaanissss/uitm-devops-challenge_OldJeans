@@ -15,6 +15,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.fazwaz.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   async rewrites() {
