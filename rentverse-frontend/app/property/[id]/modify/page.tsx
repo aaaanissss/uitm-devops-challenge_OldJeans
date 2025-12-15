@@ -103,7 +103,7 @@ function ModifyPropertyPage() {
           return
         }
 
-        const response = await fetch(`https://rentverse-be.jokoyuliyanto.my.id/api/properties/${propertyId}`, {
+       const response = await fetch(`/api/properties/${propertyId}`, {
           method: 'GET',
           headers: {
             'accept': 'application/json',
@@ -223,7 +223,7 @@ function ModifyPropertyPage() {
         return
       }
 
-      const response = await fetch(`https://rentverse-be.jokoyuliyanto.my.id/api/properties/${propertyId}`, {
+      const response = await fetch(`/api/properties/${propertyId}`, {
         method: 'PUT',
         headers: {
           'accept': 'application/json',
@@ -279,7 +279,7 @@ function ModifyPropertyPage() {
         return
       }
 
-      const response = await fetch(`https://rentverse-be.jokoyuliyanto.my.id/api/properties/${propertyId}`, {
+      const response = await fetch(`/api/properties/${propertyId}`, {
         method: 'DELETE',
         headers: {
           'accept': 'application/json',

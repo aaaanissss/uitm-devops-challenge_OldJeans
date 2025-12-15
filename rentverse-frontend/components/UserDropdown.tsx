@@ -113,11 +113,15 @@ function UserDropdown({
     <div
       ref={dropdownRef}
       className={clsx([
-        'absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg',
-        'border border-slate-200 z-50',
-        'max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col',
-        className,
-      ])}
+          // ✅ Mobile: full-width sheet under navbar
+          'fixed left-0 right-0 top-[72px] mx-auto w-screen',
+          'bg-white border border-slate-200 shadow-lg z-50',
+          'max-h-[calc(100vh-72px)] overflow-hidden flex flex-col',
+
+          // ✅ Desktop: normal dropdown panel
+          'md:absolute md:top-full md:mt-2 md:right-0 md:left-auto md:w-64 md:rounded-lg md:top-auto',
+          className,
+        ])}
     >
       {/* Welcome Header with Profile Photo */}
       <div className="px-4 py-4 border-b border-slate-100">

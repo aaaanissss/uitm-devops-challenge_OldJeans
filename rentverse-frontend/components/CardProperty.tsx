@@ -21,9 +21,38 @@ function convertPropertyType(backendType: PropertyTypeBackend): PropertyType {
 
 function CardProperty({ property }: { readonly property: Property }) {
   // Use the first image or a fallback
-  const imageUrl = property.images?.[0] || '/placeholder-property.jpg'
+  // const imageUrl = property.images?.[0] || '/placeholder-property.jpg'
+
+  // Normalize images: backend might send string ("url1,url2") or array
+  const rawImages = property.images as unknown
+
+  const extractUrls = (val: unknown): string[] => {
+    if (!val) return []
+    if (Array.isArray(val)) return val.flatMap(extractUrls)
+
+    const s = String(val)
+
+    // try JSON array first
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return parsed.flatMap(extractUrls)
+    } catch {}
+
+    return s
+      .split(/[,\s|]+/g)
+      .map(x => x.trim())
+      .filter(x => /^https?:\/\//i.test(x))
+  }
+
+  const imageList = extractUrls(rawImages)
+  const imageUrl = imageList[0] || "/placeholder-property.jpg"
+
   const propertyType = convertPropertyType(property.type)
-  
+
+  if (process.env.NODE_ENV === 'development' && imageList.length === 0 && rawImages) {
+    console.log('[NO usable image urls]', rawImages)
+  }
+
   return (
     <div className={clsx([
       'w-full max-w-320 bg-white rounded-2xl overflow-hidden shadow-sm',

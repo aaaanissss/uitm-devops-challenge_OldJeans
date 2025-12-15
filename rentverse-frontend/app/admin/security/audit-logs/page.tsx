@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ContentWrapper from "@/components/ContentWrapper";
 import AuthGuard from "@/components/AuthGuard";
 import useAuthStore from "@/stores/authStore";
@@ -11,9 +11,7 @@ import {
   type AdminAuditLogSummary,
 } from "@/lib/security/securityApi";
 
-/* =========================
-   Severity badges helpers
-========================= */
+// Severity badges helpers
 type Severity = "LOW" | "MEDIUM" | "HIGH" | string;
 
 function severityBadgeClass(sev: Severity) {
@@ -247,6 +245,15 @@ export default function AdminAuditLogsPage() {
     window.URL.revokeObjectURL(url);
   };
 
+  // compute once, use in desktop + mobile
+  const sortedLogs = useMemo(() => {
+    return [...logs].sort(
+      (a, b) =>
+        severityRank(pickHighestSeverity(b.alerts as any)) -
+        severityRank(pickHighestSeverity(a.alerts as any))
+    );
+  }, [logs]);
+
   return (
     <AuthGuard requireAuth redirectTo="/auth">
       <ContentWrapper>
@@ -256,7 +263,7 @@ export default function AdminAuditLogsPage() {
             Raw security and authentication events across all users.
           </p>
 
-          {/* ===== Threat Visualization window toggle ===== */}
+          {/* Window toggle */}
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-slate-500">Window:</span>
             <button
@@ -279,7 +286,6 @@ export default function AdminAuditLogsPage() {
 
           {summary && (
             <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-              {/* Failed logins over time */}
               <div className="rounded border p-3">
                 <div className="mb-2 text-sm font-semibold">Failed logins over time</div>
                 <div className="space-y-2">
@@ -313,7 +319,6 @@ export default function AdminAuditLogsPage() {
                 </div>
               </div>
 
-              {/* Top source IPs */}
               <div className="rounded border p-3">
                 <div className="mb-2 text-sm font-semibold">Top source IPs (failures)</div>
                 <div className="space-y-2">
@@ -327,7 +332,6 @@ export default function AdminAuditLogsPage() {
                 </div>
               </div>
 
-              {/* Event types */}
               <div className="rounded border p-3">
                 <div className="mb-2 text-sm font-semibold">Event types</div>
                 <div className="space-y-2">
@@ -342,48 +346,47 @@ export default function AdminAuditLogsPage() {
             </div>
           )}
 
-          {/* ===== Filters ===== */}
-          <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+          {/* Filters (mobile friendly) */}
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
             <select
-                value={eventType}
-                onChange={(e) => setEventType(e.target.value)}
-                className="rounded border px-3 py-2 text-sm"
-                >
-                <option value="">All events</option>
-                <option value="LOGIN_FAILURE">Login failure</option>
-                <option value="LOGIN_SUCCESS">Login success</option>
-                <option value="MFA_FAILURE">MFA failure</option>
-                <option value="MFA_SUCCESS">MFA success</option>
-                <option value="PASSWORD_CHANGE">Password change</option>
-            </select>
-
-            <input
-                type="text"
-                placeholder="Search user (email or name)"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="rounded border px-3 py-2 text-sm"
-            />
-
-            <input
-                type="text"
-                placeholder="Source IP"
-                value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                className="rounded border px-3 py-2 text-sm"
-            />
-
-            <select
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-                className="rounded border px-3 py-2 text-sm"
+              value={eventType}
+              onChange={(e) => setEventType(e.target.value)}
+              className="rounded border px-3 py-2 text-sm"
             >
-                <option value="">All severities</option>
-                <option value="HIGH">HIGH</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="LOW">LOW</option>
+              <option value="">All events</option>
+              <option value="LOGIN_FAILURE">Login failure</option>
+              <option value="LOGIN_SUCCESS">Login success</option>
+              <option value="MFA_FAILURE">MFA failure</option>
+              <option value="MFA_SUCCESS">MFA success</option>
+              <option value="PASSWORD_CHANGE">Password change</option>
             </select>
 
+            <input
+              type="text"
+              placeholder="Search user (email or name)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="rounded border px-3 py-2 text-sm"
+            />
+
+            <input
+              type="text"
+              placeholder="Source IP"
+              value={ipAddress}
+              onChange={(e) => setIpAddress(e.target.value)}
+              className="rounded border px-3 py-2 text-sm"
+            />
+
+            <select
+              value={severity}
+              onChange={(e) => setSeverity(e.target.value)}
+              className="rounded border px-3 py-2 text-sm"
+            >
+              <option value="">All severities</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
 
             <button
               onClick={() => {
@@ -392,13 +395,13 @@ export default function AdminAuditLogsPage() {
                 setIpAddress("");
                 setSeverity("");
               }}
-              className="rounded border bg-slate-50 px-3 py-2 text-sm hover:bg-slate-100"
+              className="sm:col-span-2 md:col-span-4 rounded border bg-slate-50 px-3 py-2 text-sm hover:bg-slate-100"
             >
               Clear filters
             </button>
           </div>
 
-          {/* ===== CSV export ===== */}
+          {/* CSV export */}
           <div className="mb-4 flex justify-end">
             <button
               onClick={handleExportCsv}
@@ -414,80 +417,124 @@ export default function AdminAuditLogsPage() {
             <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
           )}
 
-          {/* ===== Table ===== */}
+          {/* Desktop table + mobile cards */}
           {!loading && !error && (
-            <div className="overflow-x-auto rounded border">
-              <table className="min-w-full text-sm">
-                <thead className="bg-slate-50 text-left">
-                  <tr>
-                    <th className="px-3 py-2">Time</th>
-                    <th className="px-3 py-2">Event</th>
-                    <th className="px-3 py-2">User</th>
-                    <th className="px-3 py-2">IP</th>
-                    <th className="px-3 py-2">Alerts</th>
-                    <th className="px-3 py-2">Severity</th>
-                  </tr>
-                </thead>
+            <>
+              {/* Desktop */}
+              <div className="hidden md:block overflow-x-auto rounded border">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-slate-50 text-left">
+                    <tr>
+                      <th className="px-3 py-2">Time</th>
+                      <th className="px-3 py-2">Event</th>
+                      <th className="px-3 py-2">User</th>
+                      <th className="px-3 py-2">IP</th>
+                      <th className="px-3 py-2">Alerts</th>
+                      <th className="px-3 py-2">Severity</th>
+                    </tr>
+                  </thead>
 
-                <tbody>
-                {[...logs]
-                .sort(
-                    (a, b) =>
-                    severityRank(pickHighestSeverity(b.alerts as any)) -
-                    severityRank(pickHighestSeverity(a.alerts as any))
-                )
-                .map((log) => {
+                  <tbody>
+                    {sortedLogs.map((log) => {
+                      const highest = pickHighestSeverity(log.alerts as any);
 
-                    const highest = pickHighestSeverity(log.alerts as any);
+                      return (
+                        <tr
+                          key={log.id}
+                          className="cursor-pointer border-t hover:bg-slate-50"
+                          onClick={() => setSelectedLog(log)}
+                        >
+                          <td className="whitespace-nowrap px-3 py-2">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2 font-medium">{log.eventType}</td>
+                          <td className="px-3 py-2">
+                            {log.user ? log.user.email : <span className="text-slate-400">Anonymous</span>}
+                          </td>
+                          <td className="px-3 py-2">{log.ipAddress || "-"}</td>
+                          <td className="px-3 py-2">
+                            {log.alerts && log.alerts.length > 0 ? (
+                              <span className="text-amber-700">{log.alerts.length}</span>
+                            ) : (
+                              <span className="text-slate-400">0</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2">
+                            {highest ? <SeverityBadge severity={highest} /> : <span className="text-slate-400">—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
 
-                    return (
-                      <tr
-                        key={log.id}
-                        className="cursor-pointer border-t hover:bg-slate-50"
-                        onClick={() => setSelectedLog(log)}
-                      >
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {new Date(log.createdAt).toLocaleString()}
-                        </td>
-                        <td className="px-3 py-2 font-medium">{log.eventType}</td>
-                        <td className="px-3 py-2">
-                          {log.user ? log.user.email : <span className="text-slate-400">Anonymous</span>}
-                        </td>
-                        <td className="px-3 py-2">{log.ipAddress || "-"}</td>
-                        <td className="px-3 py-2">
-                          {log.alerts && log.alerts.length > 0 ? (
-                            <span className="text-amber-700">{log.alerts.length}</span>
-                          ) : (
-                            <span className="text-slate-400">0</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2">
-                          {highest ? <SeverityBadge severity={highest} /> : <span className="text-slate-400">—</span>}
+                    {sortedLogs.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
+                          No audit logs found
                         </td>
                       </tr>
-                    );
-                  })}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                  {logs.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
-                        No audit logs found
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+              {/* Mobile */}
+              <div className="md:hidden space-y-3">
+                {sortedLogs.map((log) => {
+                  const highest = pickHighestSeverity(log.alerts as any);
+
+                  return (
+                    <button
+                      key={log.id}
+                      type="button"
+                      onClick={() => setSelectedLog(log)}
+                      className="w-full text-left rounded-lg border border-slate-200 bg-white p-3 shadow-sm active:scale-[0.99]"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-medium text-slate-900">{log.eventType}</div>
+                          <div className="text-xs text-slate-500">
+                            {new Date(log.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+
+                        {highest ? <SeverityBadge severity={highest} /> : null}
+                      </div>
+
+                      <div className="mt-2 space-y-1 text-xs text-slate-600">
+                        <div className="truncate">
+                          <span className="text-slate-500">User: </span>
+                          {log.user ? log.user.email : "Anonymous"}
+                        </div>
+                        <div>
+                          <span className="text-slate-500">IP: </span>
+                          {log.ipAddress || "-"}
+                        </div>
+                        <div>
+                          <span className="text-slate-500">Alerts: </span>
+                          {log.alerts?.length ?? 0}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {sortedLogs.length === 0 && (
+                  <div className="rounded border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                    No audit logs found
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
-          {/* ===== Pagination ===== */}
-          <div className="flex items-center justify-between px-2 py-3 text-sm">
+          {/* Pagination (stacks on mobile) */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-2 py-3 text-sm">
             <div className="text-slate-500">
               Showing page <span className="font-medium">{page}</span> of{" "}
               <span className="font-medium">{totalPages}</span> ({totalCount} events)
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <input
                 type="number"
                 min={1}
@@ -496,17 +543,23 @@ export default function AdminAuditLogsPage() {
                 onChange={(e) => setPageInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    const n = Math.max(1, Math.min(Number(totalPages || 1), parseInt(pageInput || "0", 10) || 1));
+                    const n = Math.max(
+                      1,
+                      Math.min(Number(totalPages || 1), parseInt(pageInput || "0", 10) || 1)
+                    );
                     setPage(n);
                   }
                 }}
-                className="w-20 rounded border px-2 py-1 text-sm"
+                className="w-24 rounded border px-2 py-1 text-sm"
                 aria-label="Jump to page"
               />
 
               <button
                 onClick={() => {
-                  const n = Math.max(1, Math.min(Number(totalPages || 1), parseInt(pageInput || "0", 10) || 1));
+                  const n = Math.max(
+                    1,
+                    Math.min(Number(totalPages || 1), parseInt(pageInput || "0", 10) || 1)
+                  );
                   setPage(n);
                 }}
                 className="rounded border px-2 py-1 text-sm"
@@ -533,7 +586,7 @@ export default function AdminAuditLogsPage() {
           </div>
         </div>
 
-        {/* ===== Detail Drawer ===== */}
+        {/* Detail Drawer */}
         {selectedLog && (
           <div className="fixed inset-0 z-50 flex">
             <div className="fixed inset-0 bg-black/30" onClick={() => setSelectedLog(null)} />
@@ -585,12 +638,11 @@ export default function AdminAuditLogsPage() {
                     <ul className="space-y-2">
                       {selectedLog.alerts.map((alert: any) => (
                         <li key={alert.id} className="rounded border p-2">
-                            <div className="flex items-center gap-2">
-                                <div className="font-medium">{alert.type}</div>
-                                <SeverityBadge severity={alert.severity} />
-                                <StatusBadge status={alert.status} />
-                            </div>
-
+                          <div className="flex items-center gap-2">
+                            <div className="font-medium">{alert.type}</div>
+                            <SeverityBadge severity={alert.severity} />
+                            <StatusBadge status={alert.status} />
+                          </div>
                         </li>
                       ))}
                     </ul>
