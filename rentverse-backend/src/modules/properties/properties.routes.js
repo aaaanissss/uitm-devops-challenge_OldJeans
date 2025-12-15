@@ -298,9 +298,8 @@ const router = express.Router();
  *             example:
  *               success: true
  *               data:
- *                 properties: [
- *                   {
- *                     id: "96712e5d-fef2-4d26-affc-b2a66efe51f6"
+ *                 properties:
+ *                   - id: "96712e5d-fef2-4d26-affc-b2a66efe51f6"
  *                     code: "PROP-ML-010"
  *                     title: "Historic Shophouse in Malacca"
  *                     description: "Beautifully restored 3-story shophouse in UNESCO World Heritage area."
@@ -312,11 +311,11 @@ const router = express.Router();
  *                     latitude: 2.1951
  *                     longitude: 102.2501
  *                     mapsUrl: "https://www.google.com/maps/@2.1951,102.2501,15z"
- *                     price: 3500.00
+ *                     price: 3500
  *                     currencyCode: "MYR"
  *                     bedrooms: 3
  *                     bathrooms: 2
- *                     areaSqm: 160.0
+ *                     areaSqm: 160
  *                     furnished: false
  *                     isAvailable: true
  *                     status: "APPROVED"
@@ -325,23 +324,22 @@ const router = express.Router();
  *                     totalRatings: 12
  *                     isFavorited: false
  *                     favoriteCount: 8
- *                     images: [
- *                       "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800"
- *                     ]
+ *                     images:
+ *                       - "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800"
  *                     propertyType:
  *                       code: "APARTMENT"
  *                       name: "Apartment"
- *                     amenities: [
- *                       { amenity: { name: "Air Conditioning", category: "COMFORT" } }
- *                     ]
+ *                     amenities:
+ *                       - amenity:
+ *                           name: "Air Conditioning"
+ *                           category: "COMFORT"
  *                     owner:
  *                       name: "John Doe"
  *                       email: "landlord@example.com"
  *                     createdAt: "2025-09-19T08:30:45.123Z"
  *                     updatedAt: "2025-09-19T10:15:22.456Z"
- *                   },
- *                   {
- *                     id: "a7b23c4d-e5f6-7890-abcd-ef1234567890"
+ *
+ *                   - id: "a7b23c4d-e5f6-7890-abcd-ef1234567890"
  *                     code: "PROP-PG-011"
  *                     title: "Seaside Luxury Condo at Tanjung Bungah"
  *                     description: "Premium beachfront condominium with stunning sea views."
@@ -353,11 +351,11 @@ const router = express.Router();
  *                     latitude: 5.4665
  *                     longitude: 100.2794
  *                     mapsUrl: "https://www.google.com/maps/@5.4665,100.2794,15z"
- *                     price: 5800.00
+ *                     price: 5800
  *                     currencyCode: "MYR"
  *                     bedrooms: 3
  *                     bathrooms: 3
- *                     areaSqm: 150.0
+ *                     areaSqm: 150
  *                     furnished: true
  *                     isAvailable: true
  *                     status: "APPROVED"
@@ -366,23 +364,24 @@ const router = express.Router();
  *                     totalRatings: 23
  *                     isFavorited: true
  *                     favoriteCount: 15
- *                     images: [
- *                       "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"
- *                     ]
+ *                     images:
+ *                       - "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800"
  *                     propertyType:
  *                       code: "CONDOMINIUM"
  *                       name: "Condominium"
- *                     amenities: [
- *                       { amenity: { name: "Swimming Pool", category: "RECREATION" } },
- *                       { amenity: { name: "24-Hour Security", category: "SECURITY" } }
- *                     ]
+ *                     amenities:
+ *                       - amenity:
+ *                           name: "Swimming Pool"
+ *                           category: "RECREATION"
+ *                       - amenity:
+ *                           name: "24-Hour Security"
+ *                           category: "SECURITY"
  *                     owner:
  *                       name: "John Doe"
  *                       email: "landlord@example.com"
  *                     createdAt: "2025-09-20T14:22:10.987Z"
  *                     updatedAt: "2025-09-20T16:45:33.234Z"
- *                   }
- *                 ]
+ *
  *                 pagination:
  *                   page: 1
  *                   limit: 10
@@ -393,6 +392,7 @@ const router = express.Router();
  *                   longMean: 100.5673
  *                   depth: 18
  */
+
 router.get('/', propertiesController.getAllProperties);
 
 /**
