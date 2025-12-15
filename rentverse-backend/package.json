@@ -4,6 +4,7 @@
   "description": "Backend API for Rentverse application with Prisma, PostgreSQL, and Swagger",
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "build": "echo 'No build process needed for this project'",
