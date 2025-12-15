@@ -3,7 +3,20 @@
 import React, { useRef, useEffect } from 'react'
 import Link from 'next/link'
 import clsx from 'clsx'
-import { User, Settings, Home, Heart, Search, LogOut, Calendar, Shield, Bell, FileText, KeyRound } from 'lucide-react'
+import {
+  User,
+  Settings,
+  Home,
+  Heart,
+  Search,
+  LogOut,
+  Calendar,
+  Shield,
+  Bell,
+  FileText,
+  Inbox,
+  KeyRound,
+} from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import useCurrentUser from '@/hooks/useCurrentUser'
 
@@ -13,7 +26,11 @@ interface UserDropdownProps {
   className?: string
 }
 
-function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps>): React.ReactNode {
+function UserDropdown({
+  isOpen,
+  onClose,
+  className,
+}: Readonly<UserDropdownProps>): React.ReactNode {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { user } = useCurrentUser()
   const { logout } = useAuthStore()
@@ -22,7 +39,7 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
   const getInitials = (firstName: string, lastName: string): string => {
     const firstInitial = firstName?.charAt(0)?.toUpperCase() || ''
     const lastInitial = lastName?.charAt(0)?.toUpperCase() || ''
-    
+
     // If we have both, use both. If only one, use that one. If none, use email first letter
     if (firstInitial && lastInitial) {
       return firstInitial + lastInitial
@@ -52,7 +69,10 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
         onClose()
       }
     }
@@ -90,16 +110,15 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
   const initials = getInitials(user?.firstName || '', user?.lastName || '')
 
   return (
-      <div
-        ref={dropdownRef}
-        className={clsx([
-          'absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg',
-          'border border-slate-200 z-50',
-          'max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col',
-          className
-        ])}
-      >
-
+    <div
+      ref={dropdownRef}
+      className={clsx([
+        'absolute right-0 top-full mt-2 w-64 bg-white rounded-lg shadow-lg',
+        'border border-slate-200 z-50',
+        'max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col',
+        className,
+      ])}
+    >
       {/* Welcome Header with Profile Photo */}
       <div className="px-4 py-4 border-b border-slate-100">
         <div className="flex items-center space-x-3">
@@ -107,23 +126,19 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <div className="w-12 h-12 rounded-full bg-teal-600 text-white font-semibold flex items-center justify-center text-lg">
             {initials}
           </div>
-          
+
           {/* Welcome Message */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-slate-600 mb-1">
-              Welcome,
-            </p>
+            <p className="text-sm font-medium text-slate-600 mb-1">Welcome,</p>
             <p className="text-base font-semibold text-slate-900 truncate">
               {fullName}
             </p>
           </div>
         </div>
-        
+
         {/* Email */}
         <div className="mt-3">
-          <p className="text-sm text-slate-500 truncate">
-            {user?.email}
-          </p>
+          <p className="text-sm text-slate-500 truncate">{user?.email}</p>
         </div>
       </div>
 
@@ -131,9 +146,11 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
       <div className="py-2 overflow-y-auto">
         {/* Customer Mode */}
         <div className="px-4 py-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer Mode</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Customer Mode
+          </p>
         </div>
-        
+
         <Link
           href="/property"
           onClick={onClose}
@@ -142,7 +159,7 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <Search size={18} className="mr-3 text-slate-400" />
           <span className="font-medium">Search Property</span>
         </Link>
-        
+
         <Link
           href="/rents"
           onClick={onClose}
@@ -151,7 +168,7 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <Calendar size={18} className="mr-3 text-slate-400" />
           <span className="font-medium">My rents</span>
         </Link>
-        
+
         <Link
           href="/wishlist"
           onClick={onClose}
@@ -166,9 +183,11 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
 
         {/* Seller Mode */}
         <div className="px-4 py-2">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Seller Mode</p>
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            Seller Mode
+          </p>
         </div>
-        
+
         <Link
           href="/property/all"
           onClick={onClose}
@@ -178,6 +197,17 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <span className="font-medium">My listings</span>
         </Link>
 
+        {/* --- NEW ADDITION: MANAGE REQUESTS --- */}
+        <Link
+          href="/landlord/bookings"
+          onClick={onClose}
+          className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
+        >
+          <Inbox size={18} className="mr-3 text-slate-400" />
+          <span className="font-medium">Manage Requests</span>
+        </Link>
+        {/* ------------------------------------- */}
+
         {/* Admin Portal - Only show for admin users */}
         {user?.role === 'ADMIN' && (
           <>
@@ -186,9 +216,11 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
 
             {/* Admin Mode */}
             <div className="px-4 py-2">
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Admin Portal</p>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                Admin Portal
+              </p>
             </div>
-            
+
             <Link
               href="/admin"
               onClick={onClose}
@@ -203,7 +235,8 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
               className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
             >
               <Bell size={18} className="mr-3 text-slate-400" />
-              <span className="font-medium">Security Alerts</span> {/* Admin Security Alerts for Task 4 */}
+              <span className="font-medium">Security Alerts</span>{' '}
+              {/* Admin Security Alerts for Task 4 */}
             </Link>
             <Link
               href="/admin/security/audit-logs"
@@ -229,12 +262,13 @@ function UserDropdown({ isOpen, onClose, className }: Readonly<UserDropdownProps
           <span className="font-medium">MFA Setup</span>
         </Link>
         <Link
-          href="/account/security" 
+          href="/account/security"
           onClick={onClose}
           className="flex items-center px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors duration-200"
         >
           <Shield size={18} className="mr-3 text-slate-400" />
-          <span className="font-medium">Security</span> {/* User Security Activity for Task 4 */}
+          <span className="font-medium">Security</span>{' '}
+          {/* User Security Activity for Task 4 */}
         </Link>
         <Link
           href="/account/settings"
