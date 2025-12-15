@@ -5,6 +5,7 @@ import Image from 'next/image'
 import ButtonFilled from '@/components/ButtonFilled'
 import BoxError from '@/components/BoxError'
 import { AuthApiClient } from '@/utils/authApiClient'
+import useAuthStore from '@/stores/authStore'
 
 export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
   const [qrCode, setQrCode] = useState<string | null>(null)
@@ -15,6 +16,7 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isEnabled, setIsEnabled] = useState(mfaEnabled ?? false)
+  const refreshUserData = useAuthStore((s) => s.refreshUserData)
 
   useEffect(() => {
     setIsEnabled(!!mfaEnabled)
@@ -48,11 +50,12 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
       setError(null)
 
       await AuthApiClient.confirmMfa(code)
-        setIsEnabled(true)
-        setSuccessMessage('MFA enabled successfully for your account.')
-        setQrCode(null)
-        setSecret(null)
-        setCode('')
+      await refreshUserData() // ensures mfaEnabled=true everywhere
+      setIsEnabled(true)
+      setSuccessMessage('MFA enabled successfully for your account.')
+      setQrCode(null)
+      setSecret(null)
+      setCode('')
     } catch (e: any) {
         setError(e.message || 'Failed to verify MFA code')
     } finally {
@@ -98,7 +101,7 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
                   setSuccessMessage(null)
 
                   await AuthApiClient.disableMfa()
-
+                  await refreshUserData() // updates Zustand + localStorage
                   setIsEnabled(false)
                   setQrCode(null)
                   setSecret(null)
@@ -138,27 +141,6 @@ export default function MfaSetupCard({ mfaEnabled }: { mfaEnabled?: boolean }){
                   Or enter this key manually: <span className="font-mono">{secret}</span>
                 </p>
               )}
-            {isEnabled && (
-                <div className="mt-6">
-                    <ButtonFilled
-                    onClick={async () => {
-                        try {
-                        setIsLoading(true)
-                        await AuthApiClient.disableMfa()
-                        setIsEnabled(false)
-                        setSuccessMessage('MFA has been disabled.')
-                        } catch (e: any) {
-                        setError(e.message)
-                        } finally {
-                        setIsLoading(false)
-                        }
-                    }}
-                    className="bg-red-600 hover:bg-red-700"
-                    >
-                    Disable MFA
-                    </ButtonFilled>
-                </div>
-            )}  
             </div>
             <form onSubmit={handleConfirm} className="flex-1 space-y-4">
               <p className="text-sm text-slate-700">

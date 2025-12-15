@@ -38,13 +38,14 @@ function getEventLabel(eventType: string) {
         badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
         icon: "🟡",
       };
-    case "MFA_VERIFY_SUCCESS":
+    case "MFA_SUCCESS":
       return {
         label: "MFA verified",
         badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
         icon: "✅",
       };
-    case "MFA_VERIFY_FAILURE":
+
+    case "MFA_FAILURE":
       return {
         label: "MFA verification failed",
         badgeClass: "bg-rose-50 text-rose-700 border-rose-200",

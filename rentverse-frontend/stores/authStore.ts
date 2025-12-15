@@ -418,6 +418,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
       if (token && storedUser) {
         const user = JSON.parse(storedUser) as User;
         set({ user, isLoggedIn: true });
+        get().refreshUserData();
 
         // Load summary at boot
         get().loadSecuritySummary();

@@ -4,18 +4,13 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { prisma } = require('../config/database');
 const { passport, handleAppleSignIn } = require('../config/passport');
+const { logAuditEvent, runLoginDetectionRules } = require('../services/securityMonitoring');
 
 // Task 1: MFA
 const speakeasy = require('speakeasy'); // For TOTP generation and verification
 const qrcode = require('qrcode'); // For generating QR codes
 const { auth } = require('../middleware/auth'); // Import auth middleware
 const router = express.Router();
-
-// Security monitoring
-const {
-  logAuditEvent,
-  runLoginDetectionRules,
-} = require('../services/securityMonitoring');
 
 // Initialize Passport
 router.use(passport.initialize());
@@ -692,18 +687,53 @@ router.post(
       console.log('[MFA VERIFY] received code:', code)
 
       const isValid = speakeasy.totp.verify({
-        secret: user.mfaSecret,
-        encoding: 'base32',
-        token: code,
-        window: 1,
+      secret: user.mfaSecret,
+      encoding: 'base32',
+      token: code,
+      window: 1,
+    });
+
+    if (!isValid) {
+      // ✅ MODULE 4: log MFA failure
+      await logAuditEvent({
+        req,
+        userId: user.id,
+        eventType: 'MFA_FAILURE',
+        metadata: {
+          email: user.email,
+          reason: 'INVALID_OTP',
+        },
       });
 
-      if (!isValid) {
-        return res.status(400).json({
-          success: false,
-          message: 'Invalid MFA code',
-        });
-      }
+      // run detection rules for repeated MFA fails
+      await runLoginDetectionRules({
+        req,
+        user,
+        eventType: 'MFA_FAILURE',
+      });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid MFA code',
+      });
+    }
+
+    // log MFA success
+    await logAuditEvent({
+      req,
+      userId: user.id,
+      eventType: 'MFA_SUCCESS',
+      metadata: {
+        email: user.email,
+      },
+    });
+
+    // (optional) run detection rules for success too
+    await runLoginDetectionRules({
+      req,
+      user,
+      eventType: 'MFA_SUCCESS',
+    });
 
       // MFA passed → issue normal long-lived JWT
       const token = jwt.sign(
