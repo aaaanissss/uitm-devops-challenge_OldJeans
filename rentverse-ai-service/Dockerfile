@@ -12,6 +12,7 @@ ENV PYTHONUNBUFFERED=1
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
@@ -40,4 +41,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 # Run the application
-CMD ["python", "-m", "uvicorn", "rentverse.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn rentverse.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
