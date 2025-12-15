@@ -646,14 +646,10 @@ router.get('/geojson', propertiesController.getGeoJSON);
  *                     propertyType:
  *                       code: "APARTMENT"
  *                       name: "Apartment"
- *                     amenities: [
- *                       {
- *                         amenity: {
+ *                     amenities:
+ *                       - amenity:
  *                           name: "Air Conditioning"
  *                           category: "COMFORT"
- *                         }
- *                       }
- *                     ]
  *                     owner:
  *                       name: "John Doe"
  *                       email: "landlord@example.com"
