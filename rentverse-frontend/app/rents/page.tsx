@@ -4,9 +4,12 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import ContentWrapper from '@/components/ContentWrapper'
-import { Search, Calendar, MapPin, User, Download } from 'lucide-react'
+// [NEW] Added PenTool icon for the signature button
+import { Search, Calendar, MapPin, User, Download, PenTool } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import { createApiUrl } from '@/utils/apiConfig'
+// [NEW] Import the modal
+import SignatureModal from '@/components/Modals/SignatureModal'
 
 interface Booking {
   id: string
@@ -53,52 +56,70 @@ function RentsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  
+  // [NEW] State for Signature Modal
+  const [isSignModalOpen, setSignModalOpen] = useState(false)
+  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null)
+
   const { isLoggedIn } = useAuthStore()
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      if (!isLoggedIn) {
+  // [NEW] Function to refresh bookings after signing
+  const fetchBookings = async () => {
+    if (!isLoggedIn) {
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('authToken')
+      if (!token) {
+        setError('Authentication token not found')
         setIsLoading(false)
         return
       }
 
-      try {
-        const token = localStorage.getItem('authToken')
-        if (!token) {
-          setError('Authentication token not found')
-          setIsLoading(false)
-          return
-        }
+      const response = await fetch('/api/bookings/my-bookings', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
 
-        const response = await fetch('/api/bookings/my-bookings', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch bookings: ${response.status}`)
-        }
-
-        const data: BookingsResponse = await response.json()
-        
-        if (data.success) {
-          setBookings(data.data.bookings)
-        } else {
-          setError('Failed to load bookings')
-        }
-      } catch (err) {
-        console.error('Error fetching bookings:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load bookings')
-      } finally {
-        setIsLoading(false)
+      if (!response.ok) {
+        throw new Error(`Failed to fetch bookings: ${response.status}`)
       }
-    }
 
+      const data: BookingsResponse = await response.json()
+      
+      if (data.success) {
+        setBookings(data.data.bookings)
+      } else {
+        setError('Failed to load bookings')
+      }
+    } catch (err) {
+      console.error('Error fetching bookings:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load bookings')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
     fetchBookings()
   }, [isLoggedIn])
+
+  // [NEW] Open Signature Modal Handler
+  const handleOpenSignModal = (bookingId: string) => {
+    setSelectedBookingId(bookingId)
+    setSignModalOpen(true)
+  }
+
+  // [NEW] Handle Successful Signing
+  const handleSignSuccess = () => {
+    // Refresh the list to reflect any status changes if needed
+    fetchBookings() 
+  }
 
   const downloadRentalAgreement = async (bookingId: string) => {
     try {
@@ -123,7 +144,6 @@ function RentsPage() {
       const data = await response.json()
       
       if (data.success && data.data.pdf) {
-        // Create a temporary link element and trigger download
         const link = document.createElement('a')
         link.href = data.data.pdf.url
         link.download = data.data.pdf.fileName
@@ -234,7 +254,6 @@ function RentsPage() {
           </div>
         ) : bookings.length === 0 ? (
           <div className="flex-1 flex items-center justify-center py-10">
-            {/* If list empty */}
             <div className="text-center space-y-6 max-w-md">
               <div className="flex justify-center">
                 <Image
@@ -327,7 +346,20 @@ function RentsPage() {
                           </p>
                           <p className="text-sm text-slate-500">Total amount</p>
                         </div>
+                        
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                          {/* [NEW] SIGN AGREEMENT BUTTON */}
+                          {/* Only show for APPROVED or ACTIVE bookings */}
+                          {(booking.status === 'APPROVED' || booking.status === 'ACTIVE') && (
+                            <button
+                              onClick={() => handleOpenSignModal(booking.id)}
+                              className="flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm shadow-sm"
+                            >
+                              <PenTool size={16} />
+                              <span>Sign</span>
+                            </button>
+                          )}
+
                           <button
                             onClick={() => downloadRentalAgreement(booking.id)}
                             disabled={downloadingId === booking.id}
@@ -335,14 +367,15 @@ function RentsPage() {
                           >
                             <Download size={16} />
                             <span>
-                              {downloadingId === booking.id ? 'Downloading...' : 'Download Agreement'}
+                              {downloadingId === booking.id ? 'Loading...' : 'Agreement'}
                             </span>
                           </button>
+                          
                           <Link
                             href={`/rents/${booking.id}`}
                             className="flex items-center justify-center px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors text-sm"
                           >
-                            View detail
+                            Detail
                           </Link>
                         </div>
                       </div>
@@ -354,6 +387,14 @@ function RentsPage() {
           </div>
         )}
       </div>
+
+      {/* [NEW] Signature Modal Component */}
+      <SignatureModal 
+        isOpen={isSignModalOpen}
+        onClose={() => setSignModalOpen(false)}
+        bookingId={selectedBookingId!}
+        onSuccess={handleSignSuccess}
+      />
     </ContentWrapper>
   )
 }
