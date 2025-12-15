@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import useAuthStore from '@/stores/authStore'
 import SignatureModal from '@/components/Modals/SignatureModal'
-import { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation' // For navigation
 
 interface Booking {
   id: string
@@ -23,8 +23,24 @@ interface Booking {
   endDate: string
   rentAmount: number
   status: string
-  tenant: { name: string; email: string }
-  property: { id: string; title: string; images: string[]; address: string }
+  notes?: string
+  tenant: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+  }
+  property: {
+    id: string
+    title: string
+    images: string[]
+    address: string
+  }
+  // Optional: check if agreement exists to know who signed
+  agreement?: {
+    landlordSignedAt?: string
+    tenantSignedAt?: string
+  }
 }
 
 export default function LandlordBookingsPage() {
@@ -32,6 +48,7 @@ export default function LandlordBookingsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Signature Modal State
   const [isSignModalOpen, setSignModalOpen] = useState(false)
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(
     null
@@ -46,10 +63,13 @@ export default function LandlordBookingsPage() {
       const response = await fetch('/api/bookings/owner-bookings', {
         headers: { Authorization: `Bearer ${token}` },
       })
+
       const data = await response.json()
-      if (data.success) setBookings(data.data.bookings)
+      if (data.success) {
+        setBookings(data.data.bookings)
+      }
     } catch (error) {
-      console.error(error)
+      console.error('Failed to load bookings', error)
     } finally {
       setIsLoading(false)
     }
@@ -59,10 +79,11 @@ export default function LandlordBookingsPage() {
     if (isLoggedIn) fetchBookings()
   }, [isLoggedIn])
 
+  // Handle Approve AND then immediately Prompt to Sign
   const handleApproveAndSign = async (bookingId: string) => {
     if (
       !confirm(
-        'Accept this request? You will need to sign to finalize the approval.'
+        'Approve this booking? You will be asked to sign the agreement immediately.'
       )
     )
       return
@@ -70,6 +91,7 @@ export default function LandlordBookingsPage() {
     setActionLoading(bookingId)
     try {
       const token = localStorage.getItem('authToken')
+      // 1. First Approve the booking
       const res = await fetch(`/api/bookings/${bookingId}/approve`, {
         method: 'POST',
         headers: {
@@ -79,14 +101,17 @@ export default function LandlordBookingsPage() {
       })
 
       if (res.ok) {
-        await fetchBookings()
+        // 2. If approved, immediately open signature modal
+        await fetchBookings() // Refresh data first
         setSelectedBookingId(bookingId)
-        setSignModalOpen(true) // Open modal immediately
+        setSignModalOpen(true) // Open modal
       } else {
-        alert('Action failed')
+        const err = await res.json()
+        alert(err.message || 'Approval failed')
       }
     } catch (error) {
       console.error(error)
+      alert('Network error')
     } finally {
       setActionLoading(null)
     }
@@ -113,42 +138,29 @@ export default function LandlordBookingsPage() {
     }
   }
 
-  const getDisplayStatus = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800'
       case 'APPROVED':
-        return {
-          label: 'Action Required',
-          color: 'bg-red-100 text-red-800',
-        }
-
-      case 'PARTIALLY_SIGNED':
-        return {
-          label: 'Approved',
-          color: 'bg-orange-100 text-orange-800',
-        }
-
-      case 'FULLY_SIGNED':
-        return {
-          label: 'Active',
-          color: 'bg-green-100 text-green-800',
-        }
-
+        return 'bg-emerald-100 text-emerald-800' // Approved but not signed
       case 'REJECTED':
-        return {
-          label: 'Rejected',
-          color: 'bg-gray-100 text-gray-800',
-        }
-
+        return 'bg-red-100 text-red-800'
+      case 'PARTIALLY_SIGNED':
+        return 'bg-blue-100 text-blue-800' // One party signed
+      case 'FULLY_SIGNED':
+        return 'bg-purple-100 text-purple-800' // Active contract
       default:
-        return {
-          label: status,
-          color: 'bg-gray-100 text-gray-800',
-        }
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
-  if (!isLoggedIn) return <div>Please log in</div>
+  if (!isLoggedIn)
+    return (
+      <div className="p-10 text-center">
+        Please log in to manage properties.
+      </div>
+    )
 
   return (
     <ContentWrapper>
@@ -158,132 +170,162 @@ export default function LandlordBookingsPage() {
         </h1>
 
         {isLoading ? (
-          <div className="text-center py-20">Loading...</div>
+          <div className="text-center py-20">
+            <Loader2 className="animate-spin mx-auto mb-2" />
+            Loading requests...
+          </div>
         ) : bookings.length === 0 ? (
           <div className="text-center py-20 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-            <p className="text-slate-500">No requests found.</p>
+            <p className="text-slate-500">No booking requests found.</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {bookings.map((booking) => {
-              const normalizedStatus = booking.status?.toUpperCase().trim()
-              const display = getDisplayStatus(normalizedStatus)
-
-              return (
+            {bookings.map((booking) => (
+              <div
+                key={booking.id}
+                className="group bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col md:flex-row"
+              >
+                {/* 1. Clickable Area for Details */}
                 <div
-                  key={booking.id}
-                  className="group bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row overflow-hidden"
+                  onClick={() => router.push(`/rents/${booking.id}`)} // Make card clickable
+                  className="flex-1 flex flex-col md:flex-row gap-6 p-6 cursor-pointer"
                 >
-                  {/* Clickable Card Body */}
-                  <div
-                    onClick={() => router.push(`/rents/${booking.id}`)}
-                    className="flex-1 flex flex-col md:flex-row gap-6 p-6 cursor-pointer hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="w-full md:w-48 h-32 relative rounded-lg overflow-hidden bg-slate-200 flex-shrink-0">
-                      <Image
-                        src={booking.property.images[0] || '/placeholder.jpg'}
-                        alt={booking.property.title}
-                        fill
-                        className="object-cover"
-                      />
+                  {/* Property Image */}
+                  <div className="w-full md:w-48 h-32 relative rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
+                    <Image
+                      src={
+                        booking.property.images[0] ||
+                        '/placeholder-property.jpg'
+                      }
+                      alt={booking.property.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+
+                  {/* Details */}
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-lg text-slate-900 group-hover:text-indigo-600 transition-colors">
+                        {booking.property.title}
+                      </h3>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(
+                          booking.status
+                        )}`}
+                      >
+                        {booking.status.replace('_', ' ')}
+                      </span>
                     </div>
 
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-bold text-lg text-slate-900">
-                          {booking.property.title}
-                        </h3>
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-bold ${display.color}`}
-                        >
-                          {display.label}
+                    <p className="text-sm text-slate-500 flex items-center gap-1 mb-4">
+                      <MapPin size={14} /> {booking.property.address}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <User size={16} className="text-slate-400" />
+                        <span>
+                          Tenant: <strong>{booking.tenant.name}</strong>
                         </span>
                       </div>
-                      <p className="text-sm text-slate-500 flex items-center gap-1 mb-4">
-                        <MapPin size={14} /> {booking.property.address}
-                      </p>
-
-                      <div className="flex gap-6 text-sm text-slate-700">
-                        <span className="flex items-center gap-2">
-                          <User size={16} className="text-slate-400" />{' '}
-                          {booking.tenant.name}
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <Calendar size={16} className="text-slate-400" />{' '}
+                      <div className="flex items-center gap-2">
+                        <Calendar size={16} className="text-slate-400" />
+                        <span>
                           {new Date(booking.startDate).toLocaleDateString()} -{' '}
                           {new Date(booking.endDate).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="p-6 border-t md:border-l border-slate-100 flex flex-col justify-center items-center min-w-[200px] gap-3 bg-white">
-                    {/* 1. Pending -> Approve */}
-                    {booking.status === 'PENDING' && (
-                      <>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleApproveAndSign(booking.id)
-                          }}
-                          disabled={!!actionLoading}
-                          className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg text-sm font-medium"
-                        >
-                          {actionLoading === booking.id ? (
-                            <Loader2 className="animate-spin" size={16} />
-                          ) : (
-                            <Check size={16} />
-                          )}
-                          Accept & Sign
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleReject(booking.id)
-                          }}
-                          className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 py-2 px-4 rounded-lg text-sm font-medium"
-                        >
-                          <XIcon size={16} /> Reject
-                        </button>
-                      </>
-                    )}
+                {/* 2. Actions Area (Separate from clickable card so buttons work) */}
+                <div className="p-6 border-t md:border-t-0 md:border-l border-slate-100 bg-slate-50/50 flex flex-col justify-center items-center min-w-[180px] gap-3">
+                  {/* STATE: PENDING -> Approve & Sign */}
+                  {booking.status === 'PENDING' && (
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleApproveAndSign(booking.id)
+                        }}
+                        disabled={!!actionLoading}
+                        className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        {actionLoading === booking.id ? (
+                          <Loader2 className="animate-spin" size={16} />
+                        ) : (
+                          <Check size={16} />
+                        )}
+                        Approve & Sign
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleReject(booking.id)
+                        }}
+                        disabled={!!actionLoading}
+                        className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-600 hover:bg-red-50 hover:text-red-600 py-2 px-4 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        <XIcon size={16} />
+                        Reject
+                      </button>
+                    </>
+                  )}
 
-                    {/* 2. Approved (Backend) -> UI: "Awaiting Signature" */}
-                    {booking.status === 'APPROVED' && (
+                  {/* STATE: APPROVED -> Landlord MUST Sign First */}
+                  {booking.status === 'APPROVED' && (
+                    <>
+                      <div className="text-xs text-amber-600 font-medium mb-1 px-2 py-1 bg-amber-50 rounded">
+                        ⚠️ Action Required
+                      </div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           setSelectedBookingId(booking.id)
                           setSignModalOpen(true)
                         }}
-                        className="w-full flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white py-2 px-4 rounded-lg shadow-sm text-sm font-medium animate-pulse"
+                        className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2 px-4 rounded-lg shadow-sm text-sm font-medium animate-pulse"
                       >
-                        <PenTool size={16} /> Sign to Approve
+                        <PenTool size={16} />
+                        Sign Now
                       </button>
-                    )}
+                    </>
+                  )}
 
-                    {/* 3. Partially Signed -> UI: "Approved" */}
-                    {booking.status === 'PARTIALLY_SIGNED' && (
-                      <div className="text-center text-xs text-emerald-600 font-medium bg-emerald-50 px-3 py-2 rounded border border-emerald-100">
-                        <Check size={14} className="inline mr-1" /> Signed &
-                        Approved
-                        <br />
-                        <span className="text-slate-500 font-normal">
-                          Waiting for tenant
-                        </span>
+                  {/* STATE: PARTIALLY_SIGNED -> Waiting for Tenant */}
+                  {booking.status === 'PARTIALLY_SIGNED' && (
+                    <div className="text-center px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium border border-blue-100">
+                      <div className="flex justify-center mb-1">
+                        <Loader2 size={14} className="animate-spin" />
                       </div>
-                    )}
+                      You signed.
+                      <br />
+                      Waiting for tenant.
+                    </div>
+                  )}
 
-                    {booking.status === 'FULLY_SIGNED' && (
-                      <div className="text-green-600 font-bold text-sm flex items-center gap-2">
-                        <Check size={18} /> Active
-                      </div>
-                    )}
-                  </div>
+                  {/* STATE: FULLY_SIGNED -> Done */}
+                  {booking.status === 'FULLY_SIGNED' && (
+                    <div className="flex items-center gap-2 text-emerald-600 font-bold text-sm bg-emerald-50 px-3 py-2 rounded-lg border border-emerald-100">
+                      <Check size={16} /> All Signed
+                    </div>
+                  )}
+
+                  {/* View Details Link */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      router.push(`/rents/${booking.id}`)
+                    }}
+                    className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
+                  >
+                    View Details <ChevronRight size={12} />
+                  </button>
                 </div>
-              )
-            })}
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -292,7 +334,9 @@ export default function LandlordBookingsPage() {
         isOpen={isSignModalOpen}
         onClose={() => setSignModalOpen(false)}
         bookingId={selectedBookingId!}
-        onSuccess={() => fetchBookings()}
+        onSuccess={() => {
+          fetchBookings()
+        }}
       />
     </ContentWrapper>
   )

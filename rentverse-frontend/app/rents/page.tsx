@@ -103,9 +103,7 @@ function RentsPage() {
     setSignModalOpen(true)
   }
 
-  const handleSignSuccess = async () => {
-    await fetchBookings()
-  }
+  const handleSignSuccess = () => fetchBookings()
 
   const downloadRentalAgreement = async (bookingId: string) => {
     // ... (Your existing download logic) ...
@@ -154,47 +152,30 @@ function RentsPage() {
     }).format(num)
   }
 
-  // --- ROBUST STATUS HELPER (Tenant View) ---
-  const getDisplayStatus = (rawStatus: string) => {
-    // Safety check
-    if (!rawStatus) {
-      return { label: 'Unknown', color: 'bg-gray-100 text-gray-800' }
-    }
-
-    // Normalize status (case-insensitive, trim spaces)
-    const status = rawStatus.toUpperCase().trim()
-
+  // --- NEW LOGIC: Visual Status Helper ---
+  const getDisplayStatus = (status: string) => {
     switch (status) {
       case 'PENDING':
+        return { label: 'Pending', color: 'bg-yellow-100 text-yellow-800' }
       case 'APPROVED':
-        return {
-          label: 'Pending',
-          color: 'bg-red-100 text-red-800',
-        }
-
-      case 'PARTIALLY_SIGNED':
-        return {
-          label: 'Action Required',
-          color: 'bg-orange-100 text-orange-800',
-        }
-
-      case 'FULLY_SIGNED':
+        // Landlord approved, but maybe hasn't signed or tenant hasn't signed
         return {
           label: 'Approved',
-          color: 'bg-green-100 text-green-800',
+          color: 'bg-orange-100 text-orange-800',
         }
-
+      case 'PARTIALLY_SIGNED':
+        // Landlord signed -> Tenant needs to sign
+        return {
+          label: 'Approved',
+          color: 'bg-orange-100 text-orange-800',
+        }
+      case 'FULLY_SIGNED':
+        // Everyone signed -> NOW it is "Approved" for the tenant
+        return { label: 'Approved', color: 'bg-green-100 text-green-800' }
       case 'REJECTED':
-        return {
-          label: 'Rejected',
-          color: 'bg-gray-100 text-gray-800',
-        }
-
+        return { label: 'Rejected', color: 'bg-red-100 text-red-800' }
       default:
-        return {
-          label: status,
-          color: 'bg-gray-100 text-gray-800',
-        }
+        return { label: status, color: 'bg-gray-100 text-gray-800' }
     }
   }
 
@@ -223,8 +204,7 @@ function RentsPage() {
         ) : (
           <div className="space-y-6">
             {bookings.map((booking) => {
-              const normalizedStatus = booking.status?.toUpperCase().trim()
-              const display = getDisplayStatus(normalizedStatus)
+              const display = getDisplayStatus(booking.status)
 
               return (
                 <div

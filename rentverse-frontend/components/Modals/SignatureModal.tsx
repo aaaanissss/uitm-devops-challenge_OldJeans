@@ -8,7 +8,7 @@ interface SignatureModalProps {
   isOpen: boolean
   onClose: () => void
   bookingId: string
-  onSuccess: () => Promise<void>
+  onSuccess: () => void
 }
 
 const SignatureModal = ({
@@ -71,7 +71,7 @@ const SignatureModal = ({
       }
 
       alert('Agreement Signed Successfully!')
-      await onSuccess() // wait for refetch to finish
+      onSuccess()
       onClose()
     } catch (err: any) {
       console.error(err)
