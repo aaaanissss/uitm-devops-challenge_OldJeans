@@ -8,7 +8,6 @@ const {
 const uploadController = require('../utils/uploadController');
 
 const router = express.Router();
-
 /**
  * @swagger
  * components:
@@ -43,18 +42,22 @@ const router = express.Router();
  *               description: Cloudinary secure URL
  *             width:
  *               type: number
+ *               nullable: true
  *               description: Image/Video width (if applicable)
  *             height:
  *               type: number
+ *               nullable: true
  *               description: Image/Video height (if applicable)
  *             format:
  *               type: string
+ *               nullable: true
  *               description: Final format (webp for images, webm for videos)
  *             resourceType:
  *               type: string
  *               description: Cloudinary resource type (image, video, raw)
  *             etag:
  *               type: string
+ *               nullable: true
  *               description: File etag
  */
 
@@ -85,7 +88,7 @@ const router = express.Router();
  *                 format: binary
  *               optimize:
  *                 type: boolean
- *                 description: Whether to optimize files (default true)
+ *                 default: true
  *                 description: Whether to optimize images (default true)
  *     responses:
  *       200:
@@ -128,6 +131,7 @@ router.post(
  *                   format: binary
  *               optimize:
  *                 type: boolean
+ *                 default: true
  *                 description: Whether to optimize files (default true)
  *     responses:
  *       200:
