@@ -1,123 +1,165 @@
-Security Enhancements — summary
-=================================
+# 🔐 Security Enhancements Summary
 
-Overview
---------
-This document summarizes recent security-focused enhancements added across the backend and frontend:
-- MFA verification logging (server-side)
-- Admin alerts management and reporting (server + API)
-- User activity reporting UX (frontend)
+## Overview
+This document summarizes the **security-focused enhancements implemented in the repository** across backend, frontend, and CI/CD:
 
-Goals
------
-- Improve observability for MFA flows to help diagnose failed verification attempts.
-- Give admins the ability to manage alerts and let users report suspicious activity.
-- Provide a clear UX so users can mark suspicious events and see reported status immediately.
+- MFA verification logging and audit event capture (backend)
+- Smart Notification & Alert System (backend + frontend)
+- Activity Log Dashboard for admins (backend + frontend)
+- CI/CD Security Testing (DevSecOps – GitHub Actions)
 
-What changed (high level)
--------------------------
-1) MFA verification logging (backend)
-   - Added detailed logging around the MFA confirm/verify endpoints to capture validation errors, invalid/expired token errors, token-purpose mismatches, and invalid TOTP codes.
-   - Files to inspect:
-     - rentverse-backend/src/routes/auth.js — MFA endpoints (/api/auth/mfa/*)
-       - Look for debug/warn logs describing why a 400/401 was returned (validation failure, invalid token, wrong purpose, invalid TOTP).
-   - Purpose: When a user fails MFA verification we now log the incoming payload and the reason so developers and auditors can quickly find root causes (e.g. frontend sending number instead of string, expired mfaToken, time drift, etc.).
-
-2) Admin alerts management (backend, API contract)
-   - Backend exposes endpoints for security monitoring and alert management (see security routes).
-   - Files to inspect (examples):
-     - rentverse-backend/src/routes/security.js — admin endpoints for alerts management and summary retrieval
-     - rentverse-backend/src/services/securityMonitoring.js — hooks for logging audit events and detection rules
-   - Purpose: Let admins query/unsubscribe/resolve alerts and provide an API surface for the frontend to call when users report suspicious activity.
-
-3) User activity reporting (frontend + backend integration)
-   - Frontend now lets users report activities and shows immediate UI feedback:
-     - `rentverse-frontend/app/account/security/page.tsx` — fetches activities and implements `handleReport()` which calls the report API and updates local state.
-       - Adds `reportedIds` (Set) and `reportingId` (string|null) to track which items are reported or currently being reported.
-       - Adds a `visibleActivities` useMemo filter so resolved-only alerts are hidden from the list.
-     - `rentverse-frontend/components/security/SecurityActivityLog.tsx` — now accepts `reportedIds` and `reportingId` props and displays:
-       - a blue "Reported" badge when the activity id exists in `reportedIds`.
-       - a button which toggles text and disabled state between: "This wasn’t me" → "Reporting..." → "Reported".
-   - Backend endpoint used by `handleReport()`:
-     - POST /api/security/report or similar (see `reportSuspiciousActivity` in `rentverse-frontend/lib/security/securityApi.ts`).
-   - Purpose: Improve UX and immediate feedback when an activity is reported; reduce duplicate reports by disabling the button once reported.
-
-Notes about UX & safety
------------------------
-- Reporting is optimistic on the frontend (we mark reported locally after the successful API response). If desired, you can also persist reported flag server-side or refetch the activities after reporting.
-- The visibleActivities filter hides activities whose alerts are all `RESOLVED`. This keeps the UI focused on actionable events.
-
-Files touched (example list)
----------------------------
-- rentverse-backend/src/routes/auth.js (MFA confirm/verify logging)
-- rentverse-backend/src/routes/security.js (admin alerts endpoints)
-- rentverse-backend/src/services/securityMonitoring.js (audit/event hooks)
-- rentverse-frontend/app/account/security/page.tsx (fetching activities, `visibleActivities`, `handleReport`)
-- rentverse-frontend/components/security/SecurityActivityLog.tsx (badge/button state props)
-- rentverse-frontend/lib/security/securityApi.ts (reportSuspiciousActivity client helper)
-
-How to test
------------
-1) MFA logging
-   - Trigger MFA flows (login with MFA enabled) and intentionally submit an invalid code, an expired `mfaToken`, or an incorrectly-typed `code` (e.g. number vs string).
-   - Check backend logs for the new debug/warn lines that describe the failure reason.
-
-2) User reporting
-   - Login, open Account → Security, and click "This wasn’t me" on an activity.
-   - Observe the button switching to "Reporting...", then "Reported" and the blue badge appearing.
-   - Confirm the backend received the report (server logs or the alerts management UI for admins should reflect it).
-
-3) Admin alerts management
-   - As an admin, open the admin alerts page (if present) and verify alerts can be listed/marked resolved.
-   - Verify that when an alert is resolved, the activity is hidden on the user page (because it will be filtered out by `visibleActivities`).
-
-Next steps / optional improvements
----------------------------------
-- Add server-side persistence of reported flags so the frontend can simply show server truth.
-- Add rate-limiting for the report endpoint to prevent abuse.
-- Add email/webhook notifications for admin when high-risk alerts occur.
-- Add better error handling and toasts on the frontend instead of alert().
-
-If you want, I can also:
-- Add a small change log entry to the backend repo (e.g., `rentverse-backend/CHANGELOG.md`).
-- Wire server-side persistence of reported flags and update the UX to reflect server-sourced flags.
+> **Alignment note:** This file reflects **actual implementation state** and matches the current repository contents.
 
 ---
 
-## Task 6 – CI/CD Security Testing (DevSecOps)
+## Goals
+- Improve observability for MFA flows to diagnose failed verification attempts quickly.
+- Provide admins with alert triage + incident lifecycle controls.
+- Provide a clear user UX to report suspicious activity and see status updates.
+- Shift security left by detecting secrets, insecure code, and vulnerable dependencies in CI.
 
-A CI/CD security pipeline was implemented using GitHub Actions to enforce
-continuous security testing on every push and pull request.
+---
 
-### Implemented Security Checks
+## What changed (high level)
 
-#### 1. Secrets Scanning
-- Tool: **Gitleaks**
-- Scans the entire Git history and working tree for leaked credentials
-  (API keys, tokens, secrets).
-- Prevents accidental secret exposure in the repository.
+### 1) MFA verification logging and audit events (backend)
+**What:** Added/extended logging around MFA confirm/verify endpoints to capture common failure reasons:
+- validation errors
+- invalid/expired token
+- token-purpose mismatch
+- invalid TOTP codes / time drift scenarios
 
-#### 2. Static Application Security Testing (SAST)
-- Tool: **CodeQL**
-- Languages covered:
-  - JavaScript / TypeScript (Frontend & Backend)
-  - Python (AI Service)
-- Detects insecure coding patterns such as injection flaws,
-  unsafe deserialization, and authentication issues.
-- Runs automatically in CI on every push and pull request.
+**Where to inspect:**
+- `rentverse-backend/src/routes/auth.js` — MFA endpoints (`/api/auth/mfa/*`)
+  - Look for debug/warn logs describing why a 400/401 was returned.
 
-#### 3. Dependency Vulnerability Scanning (Advisory)
-- Backend: `pnpm audit`
-- Frontend: `bun audit`
-- Scans direct and transitive dependencies for known vulnerabilities.
-- Configured in **advisory mode** to provide visibility without blocking
-  development, allowing teams to prioritize remediation incrementally.
+**Why:** Helps developers and auditors quickly identify MFA failures (payload type mismatch, expired token, clock drift, etc.).
 
-### Deployment Readiness & CI Gates
-- All security checks run automatically via GitHub Actions.
-- CI acts as a deployment readiness gate by validating:
-  - Code security (SAST)
-  - Secrets hygiene
-  - Dependency risk visibility
-- The pipeline enforces a DevSecOps workflow where security is
-  integrated early and continuously in the development lifecycle.
+---
+
+### 2) Smart Notification & Alert System (backend + API)
+**What:** System records security events into audit logs and generates alerts when:
+- users report suspicious activity (“This wasn’t me”)
+- automated detection rules flag risky behavior (e.g., brute-force patterns)
+
+**Where to inspect:**
+- `rentverse-backend/src/routes/security.js` — endpoints for audit logs, alerts, reporting, summaries, CSV export
+- `rentverse-backend/src/services/securityMonitoring.js` — audit/event hooks + detection/alert creation logic
+
+**Why:** Provides incident visibility, traceability, and a secure API surface for frontend dashboards.
+
+---
+
+### 3) User activity reporting UX (frontend)
+**What:** Users can report suspicious security events and immediately see UI feedback.
+
+**Where to inspect:**
+- `rentverse-frontend/app/account/security/page.tsx`
+  - Calls report endpoint via client helper
+  - Tracks `reportedIds` and `reportingId` to prevent duplicate reports
+  - Filters out resolved-only items to keep the list actionable
+- `rentverse-frontend/components/security/SecurityActivityLog.tsx`
+  - Displays “Reported” badge and button state transitions:
+    - “This wasn’t me” → “Reporting…” → “Reported”
+
+**Backend endpoint used:**
+- `POST /api/security/me/report-incident`
+
+**Why:** Improves user security awareness and reduces report spam.
+
+---
+
+### 4) Admin dashboards: Alerts & Audit Logs (frontend + backend)
+**What:** Admin-only dashboards support:
+- listing + filtering alerts
+- updating alert status (`OPEN → ACKNOWLEDGED → RESOLVED`)
+- viewing audit logs with pagination and filters
+- CSV export for forensics and compliance-style review
+
+**Where to inspect:**
+- `rentverse-frontend/app/admin/security/alerts/page.tsx`
+- `rentverse-frontend/app/admin/security/audit-logs/page.tsx`
+- `rentverse-backend/src/routes/security.js` (RBAC enforced server-side)
+
+**Why:** Enables structured incident triage, investigation, and accountability.
+
+---
+
+### 5) CI/CD Security Testing (DevSecOps – Module 6)
+**What:** A CI/CD security pipeline is implemented using **GitHub Actions** to provide continuous security testing on every push and pull request.
+
+**Security checks included:**
+- **Secrets scanning:** Gitleaks  
+  Detects committed API keys, tokens, and credentials.
+- **Static Application Security Testing (SAST):** CodeQL  
+  Scans JavaScript/TypeScript (frontend & backend) and Python (AI service) for insecure coding patterns.
+- **Dependency vulnerability scanning (advisory mode):**
+  - Backend: `pnpm audit`
+  - Frontend: `bun audit`
+
+**Where to inspect:**
+- `.github/workflows/security-ci.yml`
+
+**Why:** Enforces shift-left security, preventing secret leakage and identifying insecure code and dependencies early in the development lifecycle.
+
+**Limitations:**
+- Dependency scans run in advisory (non-blocking) mode.
+- Findings require manual review and prioritization.
+
+---
+
+## Notes on token storage and SSR protection (important)
+- Tokens are currently stored in **`localStorage`** and a **client-set cookie** (`Secure; SameSite=Strict`).
+- The cookie is **not HttpOnly**, meaning tokens remain accessible to JavaScript (higher XSS exposure risk).
+- SSR route protection reads the cookie for protected routes.
+
+**Recommendation:** Migrate to server-managed session cookies with `HttpOnly` for production hardening.
+
+---
+
+## Files touched (example list)
+- `rentverse-backend/src/routes/auth.js` (MFA confirm/verify logging)
+- `rentverse-backend/src/routes/security.js` (alerts + audit log endpoints, RBAC)
+- `rentverse-backend/src/services/securityMonitoring.js` (audit/alert hooks)
+- `rentverse-frontend/app/account/security/page.tsx` (reporting + filtering UX)
+- `rentverse-frontend/components/security/SecurityActivityLog.tsx` (badge/button states)
+- `rentverse-frontend/lib/security/securityApi.ts` (report helper)
+- `.github/workflows/security-ci.yml` (CI/CD security pipeline)
+
+---
+
+## How to test
+
+### 1) MFA logging
+- Enable MFA for a user.
+- Trigger MFA verify with:
+  - invalid OTP
+  - expired/invalid `mfaToken`
+  - wrong data type (e.g., number vs string)
+- Check backend logs for detailed failure reasons.
+
+### 2) User reporting
+- Login → Account → Security.
+- Click “This wasn’t me” on an activity.
+- Confirm:
+  - button transitions to “Reporting…” then “Reported”
+  - “Reported” badge appears
+- Verify admin alerts reflect the new incident.
+
+### 3) Admin alerts + audit logs
+- Login as admin → Admin Security pages.
+- Confirm:
+  - alerts list loads
+  - status updates work
+  - audit logs list and CSV export function correctly
+- Confirm resolved incidents disappear from the user list.
+
+### 4) CI/CD security
+- Push code or open a pull request.
+- Verify GitHub Actions workflow runs:
+  - Gitleaks
+  - CodeQL
+  - Dependency audits
+- Review results in Actions logs / GitHub Security tab.
+
+---
