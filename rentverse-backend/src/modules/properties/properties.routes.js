@@ -125,69 +125,6 @@ const router = express.Router();
  *           type: string
  *           format: date-time
  *           description: The date the property was last updated
- *       example:
- *         id: "96712e5d-fef2-4d26-affc-b2a66efe51f6"
- *         code: "PROP-ML-010"
- *         title: "Historic Shophouse in Malacca"
- *         description: "Beautifully restored 3-story shophouse in UNESCO World Heritage area. Perfect for Airbnb or boutique business."
- *         address: "Jalan Hang Jebat, Malacca"
- *         city: "Malacca"
- *         state: "Malacca"
- *         country: "MY"
- *         zipCode: "75200"
- *         latitude: 2.1951
- *         longitude: 102.2501
- *         mapsUrl: "https://www.google.com/maps/@2.1951,102.2501,15z"
- *         price: 3500.00
- *         currencyCode: "MYR"
- *         bedrooms: 3
- *         bathrooms: 2
- *         areaSqm: 160.0
- *         furnished: false
- *         isAvailable: true
- *         status: "APPROVED"
- *         viewCount: 156
- *         averageRating: 4.3
- *         totalRatings: 12
- *         isFavorited: false
- *         favoriteCount: 8
- *         images: [
- *           "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800",
- *           "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800",
- *           "https://images.unsplash.com/photo-1516455590571-18256e5bb9ff?w=800"
- *         ]
- *         propertyType:
- *           id: "cltxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
- *           code: "APARTMENT"
- *           name: "Apartment"
- *           description: "Multi-unit residential building"
- *         amenities: [
- *           {
- *             amenity: {
- *               id: "amenity-ac-001"
- *               name: "Air Conditioning"
- *               description: "Central air conditioning system"
- *               category: "COMFORT"
- *             }
- *           },
- *           {
- *             amenity: {
- *               id: "amenity-pool-001"
- *               name: "Swimming Pool"
- *               description: "Community swimming pool"
- *               category: "RECREATION"
- *             }
- *           }
- *         ]
- *         owner:
- *           id: "user-123-456-789"
- *           email: "landlord@example.com"
- *           name: "John Doe"
- *           firstName: "John"
- *           lastName: "Doe"
- *           phone: "+60123456789"
- *         createdAt: "2025-09-19T08:30:45.123Z"
- *         updatedAt: "2025-09-19T10:15:22.456Z"
  */
 
 /**
