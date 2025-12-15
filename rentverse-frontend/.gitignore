@@ -10,6 +10,10 @@
 !.yarn/releases
 !.yarn/versions
 
+# dependencies (all levels)
+node_modules/
+**/node_modules/
+
 # testing
 /coverage
 
@@ -19,6 +23,9 @@
 
 # production
 /build
+.next/
+out/
+dist/
 
 # misc
 .DS_Store
@@ -32,6 +39,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.vercel
 
 # vercel
 .vercel
@@ -41,3 +49,11 @@ yarn-error.log*
 next-env.d.ts
 
 .idea/
+
+# logs
+npm-debug.log*
+pnpm-debug.log*
+
+**/*.csv
+rentverse-backend/src/scripts/
+rentverse-datasets/

@@ -11,8 +11,12 @@
 RentVerse is a full-stack rental platform designed with **security-by-design** principles.  
 This report documents the implementation of:
 
-- **Module 1 – Secure Login & MFA**
-- **Module 2 – Secure API Gateway**
+- Module 1 — Secure Login & MFA
+- Module 2 — Secure API Gateway
+- Module 3 — Digital Agreement (Mobile)
+- Module 4 — Smart Notification & Alert System
+- Module 5 — Activity Log Dashboard
+- Module 6 — CI/CD Security Testing (Bonus)
 
 The security architecture aligns with **OWASP Mobile Top 10** and **DevSecOps best practices**, focusing on authentication, authorization, and secure communication.
 
@@ -20,40 +24,15 @@ The security architecture aligns with **OWASP Mobile Top 10** and **DevSecOps be
 
 ## 🧱 Overall Security Architecture
 
-Client (Web / Mobile)
-
-↓
-
-API Gateway (Express.js)
-
-
-→ HTTPS Enforcement
-
-
-→ Rate Limiting
-
-
-→ Security Headers
-
-
-→ JWT Authentication
-
-
-→ Role & Ownership Validation
-
-
-↓
-
-
-Business Logic
-
-
-↓
-
-
-Database (PostgreSQL via Prisma)
-
-
+- Client (Web/Mobile)
+- API Gateway (Express.js)
+  - HTTPS enforcement (production)
+  - Rate limiting
+  - Security headers (Helmet)
+  - JWT authentication
+  - Role & ownership validation
+- Business Logic
+- Database (PostgreSQL via Prisma)
 
 ---
 
@@ -68,6 +47,7 @@ These prerequisites are required **once** for the entire RentVerse backend:
 - **Environment variables configured**
 - **Authenticator App** (for MFA testing)
 
+Example `.env` (backend):
 ```env
 NODE_ENV=development
 PORT=3000
@@ -101,28 +81,9 @@ This module aligns with **OWASP Mobile Top 10 (M1–M3)**:
 
 ## 🔄 Authentication & MFA Flow
 
-### 1️⃣ Standard Login (No MFA Enabled)
-1. User submits email + password
-2. Backend verifies credentials
-3. JWT token is issued
-4. User gains access based on role
-
-### 2️⃣ Login with MFA Enabled
-1. User submits email + password
-2. Backend verifies credentials
-3. Backend responds with `MFA_REQUIRED`
-4. User enters 6-digit OTP from authenticator app
-5. Backend verifies OTP
-6. JWT token is issued
-7. Access granted based on role
-
-### 3️⃣ MFA Setup Flow
-1. Authenticated user requests MFA setup
-2. Backend generates a TOTP secret
-3. QR code is returned to frontend
-4. User scans QR code using authenticator app
-5. User submits OTP for confirmation
-6. MFA is enabled for the account
+1) **Standard login (no MFA):** email/password → JWT issued.
+2) **Login with MFA:** email/password → `MFA_REQUIRED` → user submits 6-digit OTP → JWT issued.
+3) **MFA setup:** authenticated user requests setup → TOTP secret + QR returned → user confirms with OTP → MFA enabled.
 
 ---
 
@@ -134,8 +95,17 @@ This module aligns with **OWASP Mobile Top 10 (M1–M3)**:
 | JWT authentication | Stateless authentication |
 | MFA (TOTP) | Prevents account takeover |
 | Role-based access | Admin / User route separation |
-| HTTP-only cookies | Prevents XSS token theft |
+| Secure cookie flags (Secure + SameSite) | Reduces CSRF risk (cookie still readable by JS; not HttpOnly) |
 | Auth middleware | Centralized access control |
+| Audit log | Audit logging of auth events (login success/failure, MFA events) |
+
+### Token Storage (current state)
+- Stored in `localStorage` and a client-set cookie (`secure; samesite=strict`). Cookie is **not HttpOnly**, so tokens remain accessible to JavaScript; token is readable by client code. Middleware reads the cookie for SSR route protection. 
+
+### Key API Endpoints
+- Auth: `POST /api/auth/login`, `GET /api/auth/me`
+- MFA: `POST /api/auth/mfa/setup`, `POST /api/auth/mfa/confirm`, `POST /api/auth/mfa/verify`, `POST /api/auth/mfa/disable`
+(All protected via JWT where applicable; MFA endpoints use auth + TOTP verification.)
 
 ---
 
@@ -152,36 +122,16 @@ This adds MFA-related fields such as:
 - mfaSecret
 
 
-## 🔑 Key API Endpoints (Module 1)
-
-Authentication
-
-- POST /api/auth/login
-
-- GET /api/auth/me
-
-MFA
-
-- POST /api/auth/mfa/setup
-
-- POST /api/auth/mfa/verify
-
-- POST /api/auth/mfa/confirm
-
-All MFA endpoints are protected using JWT middleware.
-
 ## 🧪 Testing the MFA Flow
 
  (Download authenticator app such as Microsoft Authenticator or Authy)
 
-1. Login with valid credentials
-2. Go to Account
-3. Click Enable MFA
-4. Scan QR code using chosen authenticator app
-5. Confirm with 6-digit OTP > MFA successfuly set
-6. Logout
-7. Login again → OTP required to be authenticated
-8. To disable, got to Account > Enable MFA > Disable MFA
+1. Login with valid credentials.
+2. Go to MFA Setup page → Enable MFA.
+3. Scan QR with authenticator app.
+4. Confirm with 6-digit OTP (MFA enabled).
+5. Logout, login again → OTP required.
+6. Disable via MFA Setup page → Disable MFA.
 
 # 🔐 Module 2 – Secure API Gateway
 
@@ -280,6 +230,10 @@ pnpm add express-rate-limit
 
 ## 🧪 Testing & Verification
 
+**Rate limit**
+
+- Send repeated requests to `/api/auth/check-email`
+
 
 ```powershell
 1..120 | % {
@@ -297,25 +251,23 @@ pnpm add express-rate-limit
 }
 ```
 
-Expected output:
+- Expected output: expect HTTP 429 after ~100 requests/15min per IP.
 ``` 
 200 … 200 … 429 … 429
 ```
 ---
 **HTTPS Enforcement (Production)**
 
-Enabled only when NODE_ENV=production
+- When `NODE_ENV=production`, HTTP is redirected to HTTPS (proxy-aware via `X-Forwarded-Proto`).
 
-Redirects HTTP → HTTPS (proxy-aware via X-Forwarded-Proto)
+---
 
 # 🔔 Module 4 – Smart Notification & Alert System  
-**DevSecOps Monitoring & Incident Detection** ★★
+
 
 ## Module Overview
 
 Module 4 implements a **Smart Notification & Alert System** to monitor user security events, detect suspicious login behaviour, and provide **incident visibility for both users and administrators**.
-
-This module introduces **security telemetry, user-driven incident reporting, and admin triage workflows**, forming the foundation of **DevSecOps monitoring and incident response** within RentVerse.
 
 The system ensures that:
 - Users are aware of suspicious activity on their own accounts
@@ -357,7 +309,7 @@ Each event captures:
 ## 🚨 Alert Generation Logic
 
 Alerts are generated when:
-- A user manually reports suspicious activity (`This wasn’t me`)
+- User reports suspicious activity (“This wasn’t me”)
 - Automated rules detect risky behaviour (e.g. brute force attempts)
 
 Each alert includes:
@@ -497,19 +449,6 @@ All endpoints are protected using:
 
 ---
 
-## 🛡 Security & DevSecOps Alignment
-
-| Principle | Implementation |
-|-------|---------------|
-| Monitoring | Continuous audit logging |
-| Detection | Alert rules + user reporting |
-| Response | Admin triage workflow |
-| Least privilege | Admin-only dashboards |
-| Auditability | Immutable logs & timestamps |
-| Transparency | User-visible incident status |
-
----
-
 ## 🧪 Testing & Verification
 
 - User reports suspicious MFA/login activity
@@ -521,8 +460,6 @@ All endpoints are protected using:
 ---
 
 # 📊 Module 5 – Activity Log Dashboard  
-**Threat Visualization & Accountability** ★★★
-
 ## Module Overview
 
 Module 5 introduces a **centralized Activity Log Dashboard** that provides administrators with **real-time visibility into security-critical actions** across the RentVerse platform.
@@ -650,16 +587,6 @@ Example filename: audit_logs_1699999999999.csv
 
 ---
 
-## 🔐 Access Control
-
-- Dashboard is **ADMIN-only**
-- Enforced via:
-  - JWT authentication
-  - Role-based authorization middleware
-- Unauthorized users receive HTTP `403 Forbidden`
-
----
-
 ## 🔑 Key API Endpoints (Module 5)
 
 ### Admin Endpoints
@@ -668,15 +595,27 @@ Example filename: audit_logs_1699999999999.csv
 - `GET /api/security/audit-logs/summary`
 - `GET /api/security/audit-logs/export.csv`
 
-Supported query parameters:
-- `page`, `limit`
-- `eventType`
-- `q` (user search)
-- `ipAddress`
-- `severity`
-- `from`, `to`
+### User Endpoints
+- `GET /api/security/me/activities`
+- `POST /api/security/me/report-incident`
+- `GET /api/security/me/summary`
+
+
+(All admin endpoints require JWT + admin role; user endpoints require JWT.)
 
 ---
+
+## Data Models (Prisma)
+- `AuditLog`: eventType, ipAddress, userAgent, metadata, createdAt, userId?, auditLogId?
+- `Alert`: type, severity, status, resolvedAt?, auditLogId?, userId?
+
+---
+
+## Frontend Pages (Next.js)
+- Admin alerts: `app/admin/security/alerts/page.tsx`
+- Admin audit logs: `app/admin/security/audit-logs/page.tsx`
+- User security activity: `app/account/security/page.tsx`
+- Middleware checks `authToken` cookie for protected routes.
 
 ## 🧱 Architecture Integration
 
@@ -693,19 +632,6 @@ Audit logs act as the **single source of truth** for:
 
 ---
 
-## 🛡 DevSecOps Alignment
-
-| Principle | Implementation |
-|--------|----------------|
-| Visibility | Centralized audit dashboard |
-| Detection | Failed login & alert correlation |
-| Accountability | Immutable logs |
-| Incident Response | Alert linkage & severity |
-| Forensics | CSV export |
-| Least Privilege | Admin-only access |
-
----
-
 ## 🧪 Testing & Verification
 
 - Trigger failed login attempts
@@ -718,67 +644,55 @@ Audit logs act as the **single source of truth** for:
 
 ---
 
-# 🧪 Module 6 – CI/CD Security Testing (Bonus)  
-**Continuous Testing (DevSecOps)** ★★★
+# 🧪 Module 6 – CI/CD Security Testing (Bonus)
 
 ## Module Overview
+Module 6 integrates CI/CD security testing into the RentVerse development workflow using **GitHub Actions**.
+It automates **secrets scanning**, **SAST (static analysis)**, and **dependency vulnerability scanning** on every push and pull request.
 
-Module 6 integrates **CI/CD security testing** into the RentVerse development workflow using **GitHub Actions** (or Jenkins), enabling automated **static analysis (SAST)**, **dependency vulnerability checks**, **secrets scanning**, and **deployment safety gates** on every pull request and push.
-
-This module ensures insecure code and risky dependencies are detected **before** deployment, supporting a “shift-left” DevSecOps approach.
+This ensures security issues are detected early (“shift-left”) and provides continuous visibility into code and dependency risks before deployment.
 
 ---
 
 ## 🎯 Objectives
+- Run **secrets scanning** automatically on every PR / push
+- Run **SAST** automatically on every PR / push (JS/TS + Python)
+- Run **dependency vulnerability scanning** for frontend and backend dependencies
+- Provide **deployment readiness checks** by running security checks in CI before merging
 
-- Run **SAST** automatically on every PR / push
-- Detect **known-vulnerable dependencies** (npm/pnpm)
-- Prevent accidental **secret leaks** (API keys, tokens)
-- Enforce **security gates** (fail the pipeline on High/Critical findings)
-- Produce security reports as CI artifacts for auditing
+> Note: Dependency scanning is configured in **advisory mode** (reports findings in CI logs without blocking merges), allowing incremental remediation.
 
 ---
 
 ## 🔄 CI/CD Security Testing Flow
-
 1. Developer opens PR / pushes to branch
-2. Pipeline installs dependencies + runs tests
-3. SAST scans codebase (CodeQL / Semgrep)
-4. Dependency scanning (pnpm audit / npm audit)
-5. Secret scanning (Gitleaks)
-6. (Optional) Container scan (Trivy)
-7. Pipeline fails if security thresholds are exceeded
-8. Only passing builds can be merged/deployed
+2. GitHub Actions pipeline starts automatically
+3. Secrets scanning runs (**Gitleaks**)
+4. SAST runs (**CodeQL** for JavaScript/TypeScript and Python)
+5. Dependency scanning runs:
+   - Backend: `pnpm audit` (advisory)
+   - Frontend: `bun audit` (advisory)
+6. Results are visible in the Actions logs and (where supported) GitHub Security pages
 
 ---
 
 ## 🛡 Security Controls Implemented
-
 | Control | Description |
 |------|------------|
-| SAST (CodeQL) | Scans source code for insecure patterns (JS/TS) |
-| Semgrep (optional) | Additional rules for OWASP/Node security patterns |
-| Dependency scanning | Detects vulnerable packages via audit |
-| Secrets scanning | Prevents committed credentials (tokens/keys) |
-| Build & test gates | Blocks merge/deploy if checks fail |
-| Artifact reports | CI outputs stored for evidence/audit |
+| Secrets scanning (Gitleaks) | Detects committed credentials/tokens/keys |
+| SAST (CodeQL) | Scans source code for insecure patterns (JS/TS + Python) |
+| Dependency scanning (advisory) | Reports known vulnerable packages via `pnpm audit` and `bun audit` |
+| CI checks as deployment readiness gate | Security checks run automatically before merge/deploy |
 
 ---
 
-## 📁 Files Involved (GitHub Actions)
-
-.github/workflows/security-ci.yml
+## 📁 Files Involved
+- `.github/workflows/security-ci.yml`
 
 ---
 
 ## 🧪 Testing & Verification Checklist
-
-- Push a commit containing a known insecure pattern → CodeQL should flag it
-
-- Add a vulnerable dependency version → audit should report it
-
-- Commit a fake secret (e.g., JWT_SECRET=abc123) → Gitleaks should fail the pipeline
-
-- Confirm PR is blocked until security jobs pass
-
-
+- Confirm GitHub Actions triggers on PR/push
+- Review Gitleaks output (pass/fail depending on leaks)
+- Review CodeQL scan execution logs
+- Review dependency scan results in CI logs

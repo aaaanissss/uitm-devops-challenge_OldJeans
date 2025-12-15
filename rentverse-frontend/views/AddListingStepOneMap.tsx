@@ -81,7 +81,7 @@ function AddListingStepOneMap() {
   // Initialize MapTiler API key
   useEffect(() => {
     if (!maptilersdk.config.apiKey) {
-      maptilersdk.config.apiKey = process.env.NEXT_PUBLIC_MAPTILER_API || ''
+      maptilersdk.config.apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY || ''
     }
   }, [])
 

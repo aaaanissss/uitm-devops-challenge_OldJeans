@@ -44,7 +44,7 @@ const MapViewer = memo(function MapViewer({
   // Initialize API key once
   useEffect(() => {
     if (!maptilersdk.config.apiKey) {
-      maptilersdk.config.apiKey = process.env.NEXT_PUBLIC_MAPTILER_API || ''
+      maptilersdk.config.apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY || ''
     }
   }, [])
 
