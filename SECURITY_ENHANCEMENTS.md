@@ -83,4 +83,41 @@ If you want, I can also:
 - Wire server-side persistence of reported flags and update the UX to reflect server-sourced flags.
 
 ---
-If you'd like I can now create a short CHANGELOG entry file or apply any follow-up wiring (e.g., persist reported flags server-side). Which next step would you prefer?
+
+## Task 6 – CI/CD Security Testing (DevSecOps)
+
+A CI/CD security pipeline was implemented using GitHub Actions to enforce
+continuous security testing on every push and pull request.
+
+### Implemented Security Checks
+
+#### 1. Secrets Scanning
+- Tool: **Gitleaks**
+- Scans the entire Git history and working tree for leaked credentials
+  (API keys, tokens, secrets).
+- Prevents accidental secret exposure in the repository.
+
+#### 2. Static Application Security Testing (SAST)
+- Tool: **CodeQL**
+- Languages covered:
+  - JavaScript / TypeScript (Frontend & Backend)
+  - Python (AI Service)
+- Detects insecure coding patterns such as injection flaws,
+  unsafe deserialization, and authentication issues.
+- Runs automatically in CI on every push and pull request.
+
+#### 3. Dependency Vulnerability Scanning (Advisory)
+- Backend: `pnpm audit`
+- Frontend: `bun audit`
+- Scans direct and transitive dependencies for known vulnerabilities.
+- Configured in **advisory mode** to provide visibility without blocking
+  development, allowing teams to prioritize remediation incrementally.
+
+### Deployment Readiness & CI Gates
+- All security checks run automatically via GitHub Actions.
+- CI acts as a deployment readiness gate by validating:
+  - Code security (SAST)
+  - Secrets hygiene
+  - Dependency risk visibility
+- The pipeline enforces a DevSecOps workflow where security is
+  integrated early and continuously in the development lifecycle.
