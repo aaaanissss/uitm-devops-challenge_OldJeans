@@ -164,7 +164,7 @@ function SearchBoxProperty(props: Readonly<React.HTMLAttributes<HTMLDivElement>>
       <div ref={whereRef}>
         {isWhereOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 max-w-4xl mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 w-full md:max-w-4xl md:mx-auto">
             <h3 className="text-sm font-medium text-slate-900 mb-4 text-left">Suggested locations</h3>
             <div className="space-y-1 max-h-80 overflow-y-auto">
               {/* Search option when there's a value */}
@@ -232,7 +232,7 @@ function SearchBoxProperty(props: Readonly<React.HTMLAttributes<HTMLDivElement>>
       <div ref={durationRef}>
         {isDurationOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 max-w-4xl mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 w-full md:max-w-4xl md:mx-auto">
             <div className="space-y-6">
               {/* Month Counter */}
               <div className="flex items-center justify-between">
@@ -290,7 +290,7 @@ function SearchBoxProperty(props: Readonly<React.HTMLAttributes<HTMLDivElement>>
       <div ref={typeRef}>
         {isTypeOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 max-w-4xl mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-6 z-50 w-full md:max-w-4xl md:mx-auto">
             <div className="space-y-1 max-h-80 overflow-y-auto">
               {propertyTypes.map((type, index) => (
                 <div

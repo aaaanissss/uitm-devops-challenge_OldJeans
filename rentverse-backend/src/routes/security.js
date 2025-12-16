@@ -34,7 +34,36 @@ function csvEscape(value) {
  */
 router.get('/alerts', auth, requireAdmin, async (req, res) => {
   try {
-    const { status, severity, type } = req.query;
+    const status = typeof req.query.status === 'string' ? req.query.status.toUpperCase() : undefined;
+    const severity = typeof req.query.severity === 'string' ? req.query.severity.toUpperCase() : undefined;
+    const type = typeof req.query.type === 'string' ? req.query.type.toUpperCase() : undefined;
+
+    const allowedStatuses = ['OPEN', 'ACKNOWLEDGED', 'RESOLVED'];
+    const allowedSeverities = ['LOW', 'MEDIUM', 'HIGH'];
+
+    // IMPORTANT: replace with your REAL alert types / Prisma enum values
+    const allowedTypes = [
+      'BRUTE_FORCE',
+      'SUSPICIOUS_ACTIVITY',
+      'NEW_DEVICE',
+      'IMPOSSIBLE_TRAVEL',
+      'MULTI_ACCOUNT_FAILURE',
+      'SUSPICIOUS_MFA',
+      'OTHER',
+    ];
+
+
+    // If user passes an invalid enum value, return empty list (or 400)
+    if (status && !allowedStatuses.includes(status)) {
+      return res.status(200).json({ success: true, data: [] });
+      // or: return res.status(400).json({ success:false, message:'Invalid status' })
+    }
+    if (severity && !allowedSeverities.includes(severity)) {
+      return res.status(200).json({ success: true, data: [] });
+    }
+    if (type && !allowedTypes.includes(type)) {
+      return res.status(200).json({ success: true, data: [] });
+    }
 
     const where = {};
     if (status) where.status = status;
@@ -45,36 +74,15 @@ router.get('/alerts', auth, requireAdmin, async (req, res) => {
       where,
       orderBy: { createdAt: 'desc' },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        auditLog: {
-          select: {
-            id: true,
-            eventType: true,
-            ipAddress: true,
-            createdAt: true,
-            metadata: true,
-          },
-        },
+        user: { select: { id: true, email: true, firstName: true, lastName: true } },
+        auditLog: { select: { id: true, eventType: true, ipAddress: true, createdAt: true, metadata: true } },
       },
     });
 
-    return res.json({
-      success: true,
-      data: alerts,
-    });
+    return res.json({ success: true, data: alerts });
   } catch (err) {
     console.error('Error fetching alerts:', err);
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-    });
+    return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 

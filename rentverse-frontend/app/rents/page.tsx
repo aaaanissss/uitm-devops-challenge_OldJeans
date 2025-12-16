@@ -203,6 +203,30 @@ function RentsPage() {
     }
   }
 
+  const extractFirstUrl = (val: unknown): string | null => {
+  if (!val) return null
+  if (Array.isArray(val)) {
+    for (const v of val) {
+      const u = extractFirstUrl(v)
+      if (u) return u
+    }
+    return null
+  }
+
+  const s = String(val).trim()
+
+  // try JSON array
+  try {
+    const parsed = JSON.parse(s)
+    if (Array.isArray(parsed)) return extractFirstUrl(parsed)
+  } catch {}
+
+  // split commas/spaces/pipes and pick first http(s)
+  const parts = s.split(/[,\s|]+/g).map(x => x.trim())
+  const first = parts.find(x => /^https?:\/\//i.test(x))
+  return first || null
+}
+
   if (!isLoggedIn) return <div>Please Log In</div>
 
   return (

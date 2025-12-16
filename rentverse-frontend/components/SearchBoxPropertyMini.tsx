@@ -83,7 +83,7 @@ function SearchBoxPropertyMini(props: React.HTMLAttributes<HTMLDivElement>): Rea
   return (
     <div className={clsx(['relative', className])} {...propsRest} >
       <div
-        className="flex items-center bg-white rounded-full shadow-lg border border-slate-200 p-1 max-w-lg mx-auto overflow-hidden">
+        className="flex items-center bg-white rounded-full shadow-lg border border-slate-200 p-1 w-full md:max-w-lg md:mx-auto overflow-hidden">
         {/* Where Section */}
         <div
           className={clsx([
@@ -156,7 +156,7 @@ function SearchBoxPropertyMini(props: React.HTMLAttributes<HTMLDivElement>): Rea
       <div ref={whereRef}>
         {isWhereOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 max-w-lg mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 w-full md:max-w-lg md:mx-auto">
             <h3 className="text-xs font-medium text-slate-900 mb-3">Suggested locations</h3>
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {/* Search option when there's a value */}
@@ -205,7 +205,7 @@ function SearchBoxPropertyMini(props: React.HTMLAttributes<HTMLDivElement>): Rea
       <div ref={durationRef}>
         {isDurationOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 max-w-lg mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 w-full md:max-w-lg md:mx-auto">
             <div className="text-xs font-medium text-slate-900 mb-3">Select duration</div>
             <div className="grid grid-cols-2 gap-3">
               <div
@@ -257,7 +257,7 @@ function SearchBoxPropertyMini(props: React.HTMLAttributes<HTMLDivElement>): Rea
       <div ref={typeRef}>
         {isTypeOpen && (
           <div
-            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 max-w-lg mx-auto">
+            className="absolute top-full left-0 right-0 bg-white rounded-2xl shadow-xl border border-slate-200 mt-2 p-4 z-50 w-full md:max-w-lg md:mx-auto">
             <div className="text-xs font-medium text-slate-900 mb-3">Property type</div>
             <div className="space-y-1 max-h-60 overflow-y-auto">
               {propertyTypes.map((type, index) => (
