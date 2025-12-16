@@ -79,13 +79,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Bun 
+      - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install deps # installs frontend deps using Bun
-        run: run: bun install
+        run: bun install
 
       - name: Audit (report only)
-        run: bun audit || true # advisory: pipeline stays green, but the logs will show the vulnerabilities list.
+        run: bun audit || true
+
