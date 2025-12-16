@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">RentVerse</string>
+    <string name="title_activity_main">RentVerse</string>
+    <string name="package_name">com.rentverse.app</string>
+    <string name="custom_url_scheme">com.rentverse.app</string>
+</resources>
