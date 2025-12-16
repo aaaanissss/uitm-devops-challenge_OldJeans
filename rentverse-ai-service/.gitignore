@@ -130,3 +130,21 @@ dmypy.json
 
 # Poetry
 poetry.lock
+
+# =========================
+# Frontend (Next.js)
+# =========================
+node_modules/
+.next/
+out/
+
+# =========================
+# Capacitor / Mobile
+# =========================
+android/
+ios/
+
+# =========================
+# Local environment files
+# =========================
+.env.local
