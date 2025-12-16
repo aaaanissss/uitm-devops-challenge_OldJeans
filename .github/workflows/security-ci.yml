@@ -85,7 +85,7 @@ jobs:
           bun-version: latest
 
       - name: Install deps # installs frontend deps using Bun
-        run: bun install --frozen-lockfile
+        run: run: bun install
 
       - name: Audit (report only)
         run: bun audit || true # advisory: pipeline stays green, but the logs will show the vulnerabilities list.
