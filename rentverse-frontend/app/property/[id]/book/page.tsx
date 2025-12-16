@@ -41,6 +41,34 @@ function BookingPage() {
   const [startMonthCount, setStartMonthCount] = useState(0) // Start month from now
   const [durationMonths, setDurationMonths] = useState(1) // Duration in months
 
+  const getSafeImageSrc = (p: Property | null) => {
+    const raw = p?.images as unknown
+
+    const extractUrls = (val: unknown): string[] => {
+      if (!val) return []
+      if (Array.isArray(val)) return val.flatMap(extractUrls)
+
+      const s = String(val)
+
+      // try JSON array string first
+      try {
+        const parsed = JSON.parse(s)
+        if (Array.isArray(parsed)) return parsed.flatMap(extractUrls)
+      } catch {}
+
+      return s
+        .split(/[,\s|]+/g)
+        .map((x) => x.trim())
+        .filter((x) => /^https?:\/\//i.test(x))
+    }
+
+    const list = extractUrls(raw)
+    return (
+      list[0] ||
+      "https://res.cloudinary.com/dqhuvu22u/image/upload/f_webp/v1758016984/rentverse-rooms/Gemini_Generated_Image_5hdui35hdui35hdu_s34nx6.png"
+    )
+  }
+
   // Helper function to get property price as number
   const getPropertyPrice = useCallback(() => {
     if (!property) return 0
@@ -384,6 +412,34 @@ function BookingPage() {
     )
   }
 
+  const FALLBACK =
+  "https://res.cloudinary.com/dqhuvu22u/image/upload/f_webp/v1758016984/rentverse-rooms/Gemini_Generated_Image_5hdui35hdui35hdu_s34nx6.png"
+
+  const getSafeImage = (p: Property | null) => {
+    const raw = p?.images as unknown
+
+    const extractUrls = (val: unknown): string[] => {
+      if (!val) return []
+      if (Array.isArray(val)) return val.flatMap(extractUrls)
+
+      const s = String(val)
+
+      try {
+        const parsed = JSON.parse(s)
+        if (Array.isArray(parsed)) return parsed.flatMap(extractUrls)
+      } catch {}
+
+      return s
+        .split(/[,\s|]+/g)
+        .map((x) => x.trim())
+        .filter((x) => /^https?:\/\//i.test(x))
+    }
+
+    const list = extractUrls(raw)
+    return list[0] || FALLBACK
+  }
+
+
   // Property not found state
   if (!property && !isLoadingProperty) {
     return (
@@ -674,31 +730,27 @@ function BookingPage() {
               {/* Property Image */}
               <div className="relative w-full h-48 rounded-xl overflow-hidden">
                 {property ? (
-                  <Image
-                    src={
-                      property.images && property.images.length > 0 
-                        ? property.images[0] 
-                        : "https://res.cloudinary.com/dqhuvu22u/image/upload/f_webp/v1758016984/rentverse-rooms/Gemini_Generated_Image_5hdui35hdui35hdu_s34nx6.png"
-                    }
-                    alt={property.title || `Property ${property.id} image`}
-                    fill
-                    className="object-cover"
-                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                      // Fallback to default image if the property image fails to load
-                      const target = e.target as HTMLImageElement
-                      target.src = "https://res.cloudinary.com/dqhuvu22u/image/upload/f_webp/v1758016984/rentverse-rooms/Gemini_Generated_Image_5hdui35hdui35hdu_s34nx6.png"
-                    }}
-                  />
+                  (() => {
+                    const imgSrc = getSafeImage(property)
+                    const isFazwaz = imgSrc.includes("cdn.fazwaz.com")
+
+                    return (
+                      <Image
+                        src={imgSrc}
+                        alt={property.title || `Property ${property.id} image`}
+                        fill
+                        className="object-cover"
+                        unoptimized={isFazwaz} 
+                        sizes="(max-width: 768px) 100vw, 50vw"
+                      />
+                    )
+                  })()
                 ) : (
                   <div className="w-full h-full bg-slate-200 animate-pulse rounded-xl flex items-center justify-center">
                     <span className="text-slate-400 text-sm">Loading image...</span>
                   </div>
                 )}
-                <div className="absolute top-3 left-3 bg-white px-2 py-1 rounded-lg text-xs font-medium text-slate-700">
-                  {property?.propertyType?.name || property?.type || 'Loading...'}
-                </div>
               </div>
-
               {/* Property Details */}
               <div className="space-y-3">
                 <p className="text-sm text-slate-500">

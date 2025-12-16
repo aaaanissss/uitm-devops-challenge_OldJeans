@@ -12,17 +12,24 @@ ENV PYTHONUNBUFFERED=1
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Poetry
 RUN pip install poetry
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock ./
+#COPY pyproject.toml poetry.lock ./
+
+# Copy dependency files
+COPY pyproject.toml ./
+# Copy lockfile only if it exists in repo
+# (If you don't have it, just delete the next line)
+COPY poetry.lock ./
 
 # Configure poetry and install dependencies
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-dev --no-interaction --no-ansi
+    && poetry install --only main --no-root --no-interaction --no-ansi
 
 # Copy application code
 COPY . .
@@ -40,4 +47,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
 # Run the application
-CMD ["python", "-m", "uvicorn", "rentverse.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn rentverse.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

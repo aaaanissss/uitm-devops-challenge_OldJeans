@@ -9,7 +9,7 @@ function CardPopularLocation({ location }: { location: LocationBaseType }) {
       'hover:scale-105 transition-all duration-300',
     ])}>
       <Image
-        src={location.imageUrl}
+        src={location.imageUrl || "/placeholder-location.jpg"}
         alt={location.name}
         width={320}
         height={320}

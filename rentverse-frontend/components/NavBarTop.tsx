@@ -23,19 +23,17 @@ interface NavBarTopProps {
   isQuestionnaire?: boolean
 }
 
-function NavBarTop({ searchBoxType = 'none', isQuestionnaire = false }: Readonly<NavBarTopProps>): React.ReactNode {
+function NavBarTop({
+  searchBoxType = 'none',
+  isQuestionnaire = false,
+}: Readonly<NavBarTopProps>): React.ReactNode {
   const { user, isAuthenticated } = useCurrentUser()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const router = useRouter()
   const { clearTemporaryData, isDirty } = usePropertyListingStore()
 
-  const toggleDropdown = () => {
-    setIsDropdownOpen(!isDropdownOpen)
-  }
-
-  const closeDropdown = () => {
-    setIsDropdownOpen(false)
-  }
+  const toggleDropdown = () => setIsDropdownOpen((v) => !v)
+  const closeDropdown = () => setIsDropdownOpen(false)
 
   const handleExit = () => {
     if (isDirty) {
@@ -50,26 +48,36 @@ function NavBarTop({ searchBoxType = 'none', isQuestionnaire = false }: Readonly
       router.push('/')
     }
   }
+
+  const showCompactSearch = searchBoxType === 'compact' && !isQuestionnaire
+  const showFullSearch = searchBoxType === 'full' && !isQuestionnaire
+
   return (
-    <div className={clsx([
-      'w-full fixed z-50',
-      'px-6 py-4 bg-white top-0 list-none border-b border-slate-200',
-    ])}>
-      <div className={clsx([
-        'w-full flex items-center justify-between relative',
-        searchBoxType === 'full' && 'mb-8',
-      ])}>
+    <div
+      className={clsx([
+        'w-full fixed z-50',
+        'px-6 py-4 bg-white top-0 list-none border-b border-slate-200',
+      ])}
+    >
+      {/* Top row */}
+      <div className={clsx(['w-full flex items-center justify-between relative'])}>
         <Link href="/">
           <Image
             src="https://res.cloudinary.com/dqhuvu22u/image/upload/f_webp/v1758183655/rentverse-base/logo-nav_j8pl7d.png"
             alt="Logo Rentverse"
-            className="w-auto h-12"
             width={150}
-            height={48} />
+            height={48}
+            className="w-[110px] sm:w-[150px] h-auto"
+            priority
+          />
         </Link>
 
-        {(searchBoxType === 'compact' && !isQuestionnaire) &&
-          <SearchBoxPropertyMini className="hidden lg:block absolute ml-[16%]" />}
+        {/* Desktop: centered search (compact) */}
+        {showCompactSearch && (
+          <div className="hidden lg:block absolute left-1/2 -translate-x-1/2">
+            <SearchBoxPropertyMini className="w-[520px] max-w-[70vw]" />
+          </div>
+        )}
 
         {!isQuestionnaire && (
           <nav className="hidden md:flex items-center space-x-8">
@@ -82,24 +90,38 @@ function NavBarTop({ searchBoxType = 'none', isQuestionnaire = false }: Readonly
             <li className="relative">
               {isAuthenticated && user ? (
                 <>
-                  <Avatar 
-                    user={user} 
+                  <Avatar
+                    user={user}
                     onClick={toggleDropdown}
                     className="cursor-pointer"
                   />
-                  <UserDropdown 
-                    isOpen={isDropdownOpen} 
-                    onClose={closeDropdown}
-                  />
+                  <UserDropdown isOpen={isDropdownOpen} onClose={closeDropdown} />
                 </>
               ) : (
                 <SignUpButton />
               )}
             </li>
-          </nav>)}
-        {isQuestionnaire && <ButtonSecondary label="Exit" onClick={handleExit} />}
+          </nav>
+        )}
+
+        {isQuestionnaire && (
+          <ButtonSecondary label="Exit" onClick={handleExit} />
+        )}
       </div>
-      {(searchBoxType === 'full' && !isQuestionnaire) && <SearchBoxProperty className="hidden lg:block" />}
+
+      {/* Mobile: compact search goes BELOW the top row */}
+      {showCompactSearch && (
+        <div className="lg:hidden w-full mt-3">
+          <SearchBoxPropertyMini className="w-full" />
+        </div>
+      )}
+
+      {/* Full search (desktop only, below navbar) */}
+      {showFullSearch && (
+        <div className="mt-4 hidden lg:block">
+          <SearchBoxProperty className="w-full" />
+        </div>
+      )}
     </div>
   )
 }

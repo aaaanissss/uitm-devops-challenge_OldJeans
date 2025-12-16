@@ -59,6 +59,30 @@ interface BookingsResponse {
   }
 }
 
+const extractFirstUrl = (val: unknown): string | null => {
+  if (!val) return null
+  if (Array.isArray(val)) {
+    for (const v of val) {
+      const u = extractFirstUrl(v)
+      if (u) return u
+    }
+    return null
+  }
+
+  const s = String(val).trim()
+
+  // try JSON array
+  try {
+    const parsed = JSON.parse(s)
+    if (Array.isArray(parsed)) return extractFirstUrl(parsed)
+  } catch {}
+
+  // split commas/spaces/pipes and pick first http(s)
+  const parts = s.split(/[,\s|]+/g).map(x => x.trim())
+  const first = parts.find(x => /^https?:\/\//i.test(x))
+  return first || null
+}
+
 function RentsPage() {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -212,20 +236,26 @@ function RentsPage() {
                   className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow"
                 >
                   <div className="flex flex-col md:flex-row">
-                    <div className="md:w-1/3">
-                      <div className="relative h-48 md:h-full">
-                        <Image
-                          src={
-                            booking.property.images[0] ||
-                            '/placeholder-property.jpg'
-                          }
-                          alt={booking.property.title}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </div>
+                   <div className="md:w-1/3">
+                    <div className="relative h-48 md:h-full">
+                      {(() => {
+                        const raw = booking.property.images?.[0]
+                        const img = extractFirstUrl(raw) || '/placeholder-property.jpg'
+                        const isFazwaz = img.includes('cdn.fazwaz.com')
 
+                        return (
+                          <Image
+                            src={img}
+                            alt={booking.property.title}
+                            fill
+                            className="object-cover"
+                            unoptimized={isFazwaz}
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                          />
+                        )
+                      })()}
+                    </div>
+                  </div>
                     <div className="flex-1 p-6">
                       <div className="flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
