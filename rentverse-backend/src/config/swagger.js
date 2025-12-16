@@ -32,7 +32,7 @@ const swaggerOptions = {
       },
 
       {
-        url: 'https://rentverse-be.jokoyuliyanto.my.id',
+        url: 'https://rentverse-backend-production-61a7.up.railway.app',
         description: 'Production server',
       },
     ],
