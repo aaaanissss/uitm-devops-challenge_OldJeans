@@ -4,15 +4,11 @@ FROM node:20
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY pnpm-lock.yaml ./
+# Copy source code from rentverse-backend
+COPY . .
 
 # Install dependencies
 RUN npm install
-
-# Copy source code
-COPY . .
 
 # Generate Prisma client
 RUN npx prisma generate
