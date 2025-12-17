@@ -230,7 +230,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     setError(null);
 
     try {
-      const res = await fetch("/auth/mfa/verify", {
+      const res = await fetch("/api/auth/mfa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, mfaToken }),
@@ -343,7 +343,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const res = await fetch("/auth/check-email", {
+      const res = await fetch("/api/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -444,7 +444,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     if (!token) return false;
 
     try {
-      const res = await fetch("/auth/me", {
+      const res = await fetch("/api/auth/me", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -488,7 +488,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     if (!token) return false;
 
     try {
-      const res = await fetch("/auth/me", {
+      const res = await fetch("/api/auth/me", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
