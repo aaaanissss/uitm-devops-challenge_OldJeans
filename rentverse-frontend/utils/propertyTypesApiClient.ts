@@ -3,7 +3,7 @@ import type { PropertyTypesResponse } from '@/types/property'
 //const BASE_URL = 'https://rentverse-be.jokoyuliyanto.my.id/api'
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
   'https://rentverse-backend-production-61a7.up.railway.app'
 
 //const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL
