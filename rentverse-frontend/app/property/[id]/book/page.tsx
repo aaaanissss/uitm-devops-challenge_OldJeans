@@ -1,4 +1,4 @@
-import PropertyDetailClient from './PropertyDetailClient'
+import BookingClient from './BookingClient'
 
 // Allow dynamic routes - booking pages are generated on-demand
 export const dynamic = 'force-dynamic'
@@ -10,5 +10,5 @@ type PageProps = {
 
 export default async function Page({ params }: PageProps) {
   const { id } = await params
-  return <PropertyDetailClient propertyId={id} />
+  return <BookingClient propertyId={id} />
 }
