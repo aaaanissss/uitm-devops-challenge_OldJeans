@@ -1,11 +1,10 @@
 # Railway Configuration for Rentverse Backend
 
 [build]
-builder = "nixpacks"
-buildCommand = "npm install && npm run build"
+builder = "dockerfile"
 
 [deploy]
-startCommand = "chmod +x scripts/setup-prod-db.sh && ./scripts/setup-prod-db.sh && npm start"
+startCommand = "npm start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
 
