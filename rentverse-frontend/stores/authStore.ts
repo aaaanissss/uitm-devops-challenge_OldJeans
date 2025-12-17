@@ -3,6 +3,7 @@ import type { User, AuthState } from "@/types/auth";
 import type { SecuritySummary } from "@/types/security";
 import { AuthApiClient } from "@/utils/authApiClient";
 import { setCookie, deleteCookie } from "@/utils/cookies";
+import { createApiUrl } from "@/utils/apiConfig";
 
 interface SecurityState {
   summary: SecuritySummary | null;
@@ -86,7 +87,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
 
       if (!token) return;
 
-      const res = await fetch("/api/security/me/summary", {
+      const res = await fetch("/security/me/summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -151,7 +152,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     setError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -229,7 +230,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/mfa/verify", {
+      const res = await fetch("/auth/mfa/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, mfaToken }),
@@ -342,7 +343,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const res = await fetch("/api/auth/check-email", {
+      const res = await fetch("/auth/check-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
@@ -443,7 +444,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     if (!token) return false;
 
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch("/auth/me", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
@@ -487,7 +488,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     if (!token) return false;
 
     try {
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch("/auth/me", {
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,

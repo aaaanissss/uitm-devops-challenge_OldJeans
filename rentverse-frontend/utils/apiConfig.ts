@@ -6,9 +6,11 @@
  * Falls back to production URL if not set
  */
 export const getApiBaseUrl = (): string => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || 'https://rentverse-be.jokoyuliyanto.my.id'
-  
-  // Remove trailing slash if present
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    'https://rentverse-be.jokoyuliyanto.my.id/api'
+
   return baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
 }
 
@@ -51,7 +53,7 @@ export const getMapTilerBaseUrl = (): string => {
  * Get the full API URL with /api path
  */
 export const getApiUrl = (): string => {
-  return `${getApiBaseUrl()}/api`
+  return getApiBaseUrl()
 }
 
 /**

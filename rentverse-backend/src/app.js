@@ -187,13 +187,13 @@ app.use(
         {
           url:
             process.env.NGROK_URL ||
-            `http://localhost:${process.env.PORT || 3005}`,
+            `http://localhost:${process.env.PORT || 3000}`,
           description: process.env.NGROK_URL
             ? `🌐 Ngrok Tunnel: ${process.env.NGROK_URL}`
-            : `🏠 Local Server: http://localhost:${process.env.PORT || 3005}`,
+            : `🏠 Local Server: http://localhost:${process.env.PORT || 3000}`,
         },
         {
-          url: `http://localhost:${process.env.PORT || 3005}`,
+          url: `http://localhost:${process.env.PORT || 3000}`,
           description: '🏠 Local Development Server',
         },
       ],
@@ -263,7 +263,7 @@ app.get('/', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     cors: 'CORS configured for development',
     ngrok: process.env.NGROK_URL || 'No ngrok URL configured',
-    baseUrl: process.env.BASE_URL || 'http://localhost:3005',
+    baseUrl: process.env.BASE_URL || 'http://localhost:3000',
   });
 });
 
