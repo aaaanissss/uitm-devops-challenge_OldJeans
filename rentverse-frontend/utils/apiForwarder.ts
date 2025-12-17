@@ -2,6 +2,12 @@
 
 const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
+// Log environment variable configuration on startup
+console.log('[apiForwarder] Environment check:')
+console.log('[apiForwarder] - API_BASE_URL:', process.env.API_BASE_URL || '(not set)')
+console.log('[apiForwarder] - NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL || '(not set)')
+console.log('[apiForwarder] - Using API_BASE_URL:', API_BASE_URL)
+
 export interface ForwardRequestOptions extends RequestInit {
   timeout?: number
   retries?: number

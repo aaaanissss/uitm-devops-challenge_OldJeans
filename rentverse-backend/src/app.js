@@ -52,6 +52,7 @@ app.use(
 
 // More robust CORS configuration
 const allowedOrigins = [
+  'https://uitm-devops-challenge-old-jeans-fkk.vercel.app',
   'https://uitm-devops-challenge-old-jeans-fkk4-p64nrcf53.vercel.app',
   'https://curious-lively-monster.ngrok-free.app',
   'http://localhost:3000',
