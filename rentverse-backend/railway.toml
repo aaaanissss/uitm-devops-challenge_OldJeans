@@ -1,0 +1,23 @@
+# Railway Configuration for Rentverse Backend
+
+[build]
+builder = "nixpacks"
+buildCommand = "npm install && npm run build"
+
+[deploy]
+startCommand = "chmod +x scripts/setup-prod-db.sh && ./scripts/setup-prod-db.sh && npm start"
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+[variables]
+NODE_ENV = "production"
+PORT = "3000"
+
+# Prisma will automatically handle shadow database
+PRISMA_GENERATE_DATAPROXY = "false"
+
+# Database connection will be set automatically by Railway
+# DATABASE_URL will be injected by Railway's PostgreSQL service
+
+# Optional: Add your JWT secret here or set in Railway dashboard
+# JWT_SECRET = "your-production-jwt-secret"
