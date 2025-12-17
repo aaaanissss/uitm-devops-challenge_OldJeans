@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     ))
 
     // Forward the request to the backend
-    const response = await forwardRequest('/api/upload/multiple', {
+    const response = await forwardRequest('upload/multiple', {
       method: 'POST',
       body: formData,
       // Headers will be set automatically by forwardRequest for FormData

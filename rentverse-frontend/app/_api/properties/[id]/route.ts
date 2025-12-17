@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: propertyId } = await params
-  return propertiesApiForwarder(request, `/api/properties/${propertyId}`)
+  return propertiesApiForwarder(request, `properties/${propertyId}`)
 }
 
 export async function PUT(
@@ -14,7 +14,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: propertyId } = await params
-  return propertiesApiForwarder(request, `/api/properties/${propertyId}`)
+  return propertiesApiForwarder(request, `properties/${propertyId}`)
 }
 
 export async function DELETE(
@@ -22,5 +22,5 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: propertyId } = await params
-  return propertiesApiForwarder(request, `/api/properties/${propertyId}`)
+  return propertiesApiForwarder(request, `properties/${propertyId}`)
 }

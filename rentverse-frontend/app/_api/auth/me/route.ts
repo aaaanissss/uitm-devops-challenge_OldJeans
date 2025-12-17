@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     try {
       // Forward to backend's /me endpoint to get current user profile
-      const response = await forwardRequest('/api/auth/me', {
+      const response = await forwardRequest('auth/me', {
         method: 'GET',
         headers: {
           ...getAuthHeader(request),

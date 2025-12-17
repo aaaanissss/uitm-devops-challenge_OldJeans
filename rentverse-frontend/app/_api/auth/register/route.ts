@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Forward the request to the backend
-    const response = await forwardRequest('/api/auth/register', {
+    const response = await forwardRequest('auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Forward to backend
-      const response = await forwardRequest('/api/auth/login', {
+      const response = await forwardRequest('auth/login', {
         method: 'POST',
         headers: {
           ...getAuthHeader(request),

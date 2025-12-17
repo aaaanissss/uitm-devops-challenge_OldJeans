@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     try {
       // Forward to backend
-      const response = await forwardRequest('/api/auth/signup', {
+      const response = await forwardRequest('auth/signup', {
         method: 'POST',
         headers: {
           ...getAuthHeader(request),

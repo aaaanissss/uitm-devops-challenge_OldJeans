@@ -19,7 +19,7 @@ export async function POST(
     }
 
     // Forward the request to the backend
-    const response = await forwardRequest(`/api/properties/${propertyId}/view`, {
+    const response = await forwardRequest(`properties/${propertyId}/view`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
