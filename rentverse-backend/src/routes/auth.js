@@ -219,6 +219,25 @@ router.post(
   }
 );
 
+router.post('/check-email', [
+    body('email').isEmail().normalizeEmail(),
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ success: false, message: 'Invalid email format', errors: errors.array() });
+        }
+
+        const { email } = req.body;
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        res.json({ success: true, data: { exists: !!user } });
+    } catch (error) {
+        console.error('Check email error:', error);
+        res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+});
+
 /**
  * @swagger
  * /api/auth/login:
