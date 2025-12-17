@@ -31,7 +31,7 @@ export class PropertyTypesApiClient {
       console.log('URL:', `${BASE_URL}/property-types?page=1&limit=10`)
       console.log('Headers:', headers)
 
-      const response = await fetch(`${BASE_URL}/property-types?page=1&limit=10`, {
+      const response = await fetch(`/api/property-types?page=1&limit=10`, {
         method: 'GET',
         headers,
         mode: 'cors',
