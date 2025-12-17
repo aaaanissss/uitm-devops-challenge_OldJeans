@@ -1,12 +1,8 @@
 import PropertyDetailClient from './PropertyDetailClient'
-import propertyIds from '@/data/static-property-ids.json'
 
-export const dynamic = 'force-static'
-export const dynamicParams = false
-
-export function generateStaticParams() {
-  return (propertyIds as string[]).map((id) => ({ id }))
-}
+// Allow dynamic routes - booking pages are generated on-demand
+export const dynamic = 'force-dynamic'
+export const dynamicParams = true
 
 type PageProps = {
   params: Promise<{ id: string }>
