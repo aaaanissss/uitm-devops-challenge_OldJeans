@@ -32,6 +32,9 @@
   ],
   "author": "jekoyu",
   "license": "ISC",
+  "engines": {
+    "node": "20"
+  },
   "packageManager": "pnpm@10.13.1",
   "prisma": {
     "seed": "node prisma/seed.js"
