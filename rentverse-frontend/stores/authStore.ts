@@ -87,7 +87,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
 
       if (!token) return;
 
-      const res = await fetch("/security/me/summary", {
+      const res = await fetch("/api/security/me/summary", {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -152,7 +152,7 @@ const useAuthStore = create<AuthStore>((set, get) => ({
     setError(null);
 
     try {
-      const response = await fetch("/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

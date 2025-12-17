@@ -50,89 +50,50 @@ app.use(
   })
 );
 
-// Simple CORS configuration - allow everything in development
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      console.log('CORS Origin:', origin);
+// More robust CORS configuration
+const allowedOrigins = [
+  'https://uitm-devops-challenge-old-jeans-fkk4-p64nrcf53.vercel.app',
+  'https://curious-lively-monster.ngrok-free.app',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:5173',
+  'https://rentverse.terablock.space',
+];
 
-      // Always allow in development
-      if (process.env.NODE_ENV === 'development') {
-        return callback(null, true);
-      }
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
 
-      // Allow no origin (mobile apps, postman, etc)
-      if (!origin) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With',
+    'Accept',
+    'Origin',
+    'Access-Control-Request-Method',
+    'Access-Control-Request-Headers',
+    'X-Forwarded-Proto',
+    'X-Forwarded-Host',
+  ],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  maxAge: 86400,
+  preflightContinue: false,
+  optionsSuccessStatus: 200,
+};
 
-      // Explicitly allow ngrok URL
-      if (origin === 'https://curious-lively-monster.ngrok-free.app') {
-        return callback(null, true);
-      }
+app.use(cors(corsOptions));
 
-      // Allow localhost variants
-      if (origin.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
-        return callback(null, true);
-      }
-
-      return callback(null, true); // Allow all for now
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'Accept',
-      'Origin',
-      'Access-Control-Request-Method',
-      'Access-Control-Request-Headers',
-      'X-Forwarded-Proto',
-      'X-Forwarded-Host',
-    ],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
-    maxAge: 86400,
-    preflightContinue: false,
-    optionsSuccessStatus: 200,
-  })
-);
-
-// Additional CORS debugging and handling
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Set CORS headers manually for ngrok and other origins
-  res.header('Access-Control-Allow-Origin', origin || '*');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header(
-    'Access-Control-Allow-Methods',
-    'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS'
-  );
-  res.header(
-    'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Forwarded-Proto, X-Forwarded-Host'
-  );
-  res.header('Access-Control-Expose-Headers', 'Content-Range, X-Content-Range');
-
-  // Debug logging
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`CORS: ${req.method} ${req.path}`);
-    console.log(`Origin: ${origin}`);
-    console.log(`Host: ${req.headers.host}`);
-    console.log(`X-Forwarded-Host: ${req.headers['x-forwarded-host']}`);
-    console.log(`X-Forwarded-Proto: ${req.headers['x-forwarded-proto']}`);
-    console.log('---');
-  }
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
-  next();
-});
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 app.use(morgan('combined'));
 app.use(express.json());
