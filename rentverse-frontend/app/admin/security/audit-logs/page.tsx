@@ -223,7 +223,7 @@ export default function AdminAuditLogsPage() {
     if (ipAddress) params.set("ipAddress", ipAddress);
     if (severity) params.set("severity", severity);
 
-    const res = await fetch(`/api/security/audit-logs/export.csv?${params.toString()}`, {
+    const res = await fetch(`/api/security/audit-logs/export?${params.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
 
@@ -268,17 +268,15 @@ export default function AdminAuditLogsPage() {
             <span className="text-xs text-slate-500">Window:</span>
             <button
               onClick={() => setWindowRange("24h")}
-              className={`rounded border px-2 py-1 text-xs ${
-                windowRange === "24h" ? "bg-slate-900 text-white" : "bg-white"
-              }`}
+              className={`rounded border px-2 py-1 text-xs ${windowRange === "24h" ? "bg-slate-900 text-white" : "bg-white"
+                }`}
             >
               24h
             </button>
             <button
               onClick={() => setWindowRange("7d")}
-              className={`rounded border px-2 py-1 text-xs ${
-                windowRange === "7d" ? "bg-slate-900 text-white" : "bg-white"
-              }`}
+              className={`rounded border px-2 py-1 text-xs ${windowRange === "7d" ? "bg-slate-900 text-white" : "bg-white"
+                }`}
             >
               7d
             </button>
@@ -308,7 +306,7 @@ export default function AdminAuditLogsPage() {
                                     0
                                   )
                                 )) *
-                                100
+                              100
                             )}%`,
                           }}
                         />
