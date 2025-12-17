@@ -12,7 +12,7 @@ export class AuthApiClient {
    */
   static async register(userData: RegisterRequest): Promise<AuthResponse> {
     try {
-      const response = await fetch(createApiUrl('auth/register'), {
+      const response = await fetch(createApiUrl('api/auth/register'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
@@ -36,7 +36,7 @@ export class AuthApiClient {
    */
   static async login(email: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await fetch(createApiUrl('auth/login'), {
+      const response = await fetch(createApiUrl('api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -89,7 +89,7 @@ export class AuthApiClient {
     token: string
   ): Promise<AuthResponse['data']['user']> {
     try {
-      const response = await fetch(createApiUrl('auth/me'), {
+      const response = await fetch(createApiUrl('api/auth/me'), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -117,7 +117,7 @@ export class AuthApiClient {
     const token = localStorage.getItem('authToken')
     if (!token) throw new Error('Not authenticated')
 
-    const res = await fetch(createApiUrl('auth/mfa/setup'), {
+    const res = await fetch(createApiUrl('api/auth/mfa/setup'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export class AuthApiClient {
     const token = localStorage.getItem('authToken')
     if (!token) throw new Error('Not authenticated')
 
-    const res = await fetch(createApiUrl('auth/mfa/confirm'), {
+    const res = await fetch(createApiUrl('api/auth/mfa/confirm'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -161,7 +161,7 @@ export class AuthApiClient {
     const token = localStorage.getItem('authToken')
     if (!token) throw new Error('Not authenticated')
 
-    const res = await fetch(createApiUrl('auth/mfa/disable'), {
+    const res = await fetch(createApiUrl('api/auth/mfa/disable'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

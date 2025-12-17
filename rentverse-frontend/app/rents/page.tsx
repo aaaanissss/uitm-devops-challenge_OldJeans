@@ -75,7 +75,7 @@ const extractFirstUrl = (val: unknown): string | null => {
   try {
     const parsed = JSON.parse(s)
     if (Array.isArray(parsed)) return extractFirstUrl(parsed)
-  } catch {}
+  } catch { }
 
   // split commas/spaces/pipes and pick first http(s)
   const parts = s.split(/[,\s|]+/g).map(x => x.trim())
@@ -135,7 +135,7 @@ function RentsPage() {
       setDownloadingId(bookingId)
       const token = localStorage.getItem('authToken')
       const response = await fetch(
-        createApiUrl(`bookings/${bookingId}/rental-agreement`),
+        createApiUrl(`api/bookings/${bookingId}/rental-agreement`),
         {
           headers: {
             accept: 'application/json',
@@ -204,28 +204,28 @@ function RentsPage() {
   }
 
   const extractFirstUrl = (val: unknown): string | null => {
-  if (!val) return null
-  if (Array.isArray(val)) {
-    for (const v of val) {
-      const u = extractFirstUrl(v)
-      if (u) return u
+    if (!val) return null
+    if (Array.isArray(val)) {
+      for (const v of val) {
+        const u = extractFirstUrl(v)
+        if (u) return u
+      }
+      return null
     }
-    return null
+
+    const s = String(val).trim()
+
+    // try JSON array
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) return extractFirstUrl(parsed)
+    } catch { }
+
+    // split commas/spaces/pipes and pick first http(s)
+    const parts = s.split(/[,\s|]+/g).map(x => x.trim())
+    const first = parts.find(x => /^https?:\/\//i.test(x))
+    return first || null
   }
-
-  const s = String(val).trim()
-
-  // try JSON array
-  try {
-    const parsed = JSON.parse(s)
-    if (Array.isArray(parsed)) return extractFirstUrl(parsed)
-  } catch {}
-
-  // split commas/spaces/pipes and pick first http(s)
-  const parts = s.split(/[,\s|]+/g).map(x => x.trim())
-  const first = parts.find(x => /^https?:\/\//i.test(x))
-  return first || null
-}
 
   if (!isLoggedIn) return <div>Please Log In</div>
 
@@ -260,26 +260,26 @@ function RentsPage() {
                   className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:shadow-lg transition-shadow"
                 >
                   <div className="flex flex-col md:flex-row">
-                   <div className="md:w-1/3">
-                    <div className="relative h-48 md:h-full">
-                      {(() => {
-                        const raw = booking.property.images?.[0]
-                        const img = extractFirstUrl(raw) || '/placeholder-property.jpg'
-                        const isFazwaz = img.includes('cdn.fazwaz.com')
+                    <div className="md:w-1/3">
+                      <div className="relative h-48 md:h-full">
+                        {(() => {
+                          const raw = booking.property.images?.[0]
+                          const img = extractFirstUrl(raw) || '/placeholder-property.jpg'
+                          const isFazwaz = img.includes('cdn.fazwaz.com')
 
-                        return (
-                          <Image
-                            src={img}
-                            alt={booking.property.title}
-                            fill
-                            className="object-cover"
-                            unoptimized={isFazwaz}
-                            sizes="(max-width: 768px) 100vw, 50vw"
-                          />
-                        )
-                      })()}
+                          return (
+                            <Image
+                              src={img}
+                              alt={booking.property.title}
+                              fill
+                              className="object-cover"
+                              unoptimized={isFazwaz}
+                              sizes="(max-width: 768px) 100vw, 50vw"
+                            />
+                          )
+                        })()}
+                      </div>
                     </div>
-                  </div>
                     <div className="flex-1 p-6">
                       <div className="flex flex-col h-full">
                         <div className="flex justify-between items-start mb-4">
@@ -336,14 +336,14 @@ function RentsPage() {
                             {/* Show SIGN button if Approved/PartiallySigned AND not fully signed yet */}
                             {(booking.status === 'APPROVED' ||
                               booking.status === 'PARTIALLY_SIGNED') && (
-                              <button
-                                onClick={() => handleOpenSignModal(booking.id)}
-                                className="flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm shadow-sm"
-                              >
-                                <PenTool size={16} />
-                                <span>Sign to Approve</span>
-                              </button>
-                            )}
+                                <button
+                                  onClick={() => handleOpenSignModal(booking.id)}
+                                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm shadow-sm"
+                                >
+                                  <PenTool size={16} />
+                                  <span>Sign to Approve</span>
+                                </button>
+                              )}
 
                             {booking.status === 'FULLY_SIGNED' && (
                               <div className="px-4 py-2 bg-green-50 text-green-700 rounded-lg border border-green-200 text-sm flex items-center gap-2">

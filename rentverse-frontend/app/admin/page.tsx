@@ -140,7 +140,7 @@ function AdminPage() {
         }
 
         const data: AuthMeResponse = await response.json()
-        
+
         if (data.success) {
           setUser(data.data.user)
         } else {
@@ -169,7 +169,7 @@ function AdminPage() {
           throw new Error('Authentication token not found')
         }
 
-        const response = await fetch(createApiUrl('properties/pending-approval'), {
+        const response = await fetch(createApiUrl('api/properties/pending-approval'), {
           method: 'GET',
           headers: {
             'accept': '*/*',
@@ -182,7 +182,7 @@ function AdminPage() {
         }
 
         const data: PendingApprovalsResponse = await response.json()
-        
+
         if (data.success) {
           setPendingApprovals(data.data.approvals)
         } else {
@@ -208,7 +208,7 @@ function AdminPage() {
         const token = localStorage.getItem('authToken')
         if (!token) return
 
-        const response = await fetch(createApiUrl('properties/auto-approve/status'), {
+        const response = await fetch(createApiUrl('api/properties/auto-approve/status'), {
           method: 'GET',
           headers: {
             'accept': 'application/json',
@@ -325,7 +325,7 @@ function AdminPage() {
         throw new Error('Authentication token not found')
       }
 
-      const response = await fetch(createApiUrl('properties/auto-approve/toggle'), {
+      const response = await fetch(createApiUrl('api/properties/auto-approve/toggle'), {
         method: 'POST',
         headers: {
           'accept': 'application/json',
@@ -342,7 +342,7 @@ function AdminPage() {
       }
 
       const data = await response.json()
-      
+
       if (data.success) {
         setAutoReviewEnabled(data.data.status.isEnabled)
       } else {
@@ -365,7 +365,7 @@ function AdminPage() {
         throw new Error('Authentication token not found')
       }
 
-      const response = await fetch(createApiUrl(`properties/${propertyId}/approve`), {
+      const response = await fetch(createApiUrl(`api/properties/${propertyId}/approve`), {
         method: 'POST',
         headers: {
           'accept': '*/*',
@@ -382,11 +382,11 @@ function AdminPage() {
       }
 
       const data = await response.json()
-      
+
       if (data.success) {
         // Remove the approved property from pending approvals
         setPendingApprovals(prev => prev.filter(approval => approval.propertyId !== propertyId))
-        
+
         // Show success message (optional)
         console.log('Property approved successfully:', data.message)
       } else {
@@ -413,7 +413,7 @@ function AdminPage() {
         throw new Error('Authentication token not found')
       }
 
-      const response = await fetch(createApiUrl(`properties/${propertyId}/reject`), {
+      const response = await fetch(createApiUrl(`api/properties/${propertyId}/reject`), {
         method: 'POST',
         headers: {
           'accept': '*/*',
@@ -430,11 +430,11 @@ function AdminPage() {
       }
 
       const data = await response.json()
-      
+
       if (data.success) {
         // Remove the rejected property from pending approvals
         setPendingApprovals(prev => prev.filter(approval => approval.propertyId !== propertyId))
-        
+
         // Show success message (optional)
         console.log('Property rejected successfully:', data.message)
       } else {
@@ -457,7 +457,7 @@ function AdminPage() {
       {/* Statistics Dashboard */}
       <div className="mb-8">
         <h2 className="text-2xl font-sans font-bold text-slate-900 mb-6">Admin Dashboard</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Total Pending */}
           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -530,16 +530,14 @@ function AdminPage() {
               <button
                 onClick={toggleAutoReview}
                 disabled={isTogglingAutoReview}
-                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${
-                  autoReviewEnabled 
-                    ? 'bg-teal-600' 
+                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 ${autoReviewEnabled
+                    ? 'bg-teal-600'
                     : 'bg-slate-300'
-                } ${isTogglingAutoReview ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  } ${isTogglingAutoReview ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <span
-                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 ${
-                    autoReviewEnabled ? 'translate-x-7' : 'translate-x-1'
-                  }`}
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform duration-200 ${autoReviewEnabled ? 'translate-x-7' : 'translate-x-1'
+                    }`}
                 />
               </button>
               <div className="bg-teal-50 px-3 py-1 rounded-full">
@@ -676,21 +674,19 @@ function AdminPage() {
                         </button>
                       </div>
                       <div className="flex space-x-3">
-                        <button 
+                        <button
                           onClick={() => approveProperty(approval.property.id)}
                           disabled={approvingProperties.has(approval.property.id)}
-                          className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm ${
-                            approvingProperties.has(approval.property.id) ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm ${approvingProperties.has(approval.property.id) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                         >
                           {approvingProperties.has(approval.property.id) ? 'Approving...' : 'Approve'}
                         </button>
-                        <button 
+                        <button
                           onClick={() => rejectProperty(approval.property.id)}
                           disabled={rejectingProperties.has(approval.property.id)}
-                          className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm ${
-                            rejectingProperties.has(approval.property.id) ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          className={`px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm ${rejectingProperties.has(approval.property.id) ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                         >
                           {rejectingProperties.has(approval.property.id) ? 'Rejecting...' : 'Reject'}
                         </button>

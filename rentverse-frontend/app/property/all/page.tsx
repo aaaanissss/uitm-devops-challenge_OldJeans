@@ -171,7 +171,7 @@ function AllMyPropertiesPage() {
           return
         }
 
-        const response = await fetch(createApiUrl('properties/my-properties?page=1&limit=50'), {
+        const response = await fetch(createApiUrl('api/properties/my-properties?page=1&limit=50'), {
           method: 'GET',
           headers: {
             'accept': 'application/json',
@@ -184,7 +184,7 @@ function AllMyPropertiesPage() {
         }
 
         const data: MyPropertiesResponse = await response.json()
-        
+
         if (data.success) {
           const convertedProperties = data.data.properties.map(convertBackendProperty)
           setMyProperties(convertedProperties)
