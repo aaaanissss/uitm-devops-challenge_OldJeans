@@ -32,8 +32,14 @@ const SignatureModal = ({
       return
     }
 
-    // 2. Check if signature is empty
-    if (sigCanvas.current?.isEmpty()) {
+    // 2. Check if signature canvas ref exists
+    if (!sigCanvas.current) {
+      setError('Signature canvas not ready')
+      return
+    }
+
+    // 3. Check if signature is empty
+    if (sigCanvas.current.isEmpty()) {
       setError('Please draw your signature first')
       return
     }
@@ -41,28 +47,29 @@ const SignatureModal = ({
     setLoading(true)
     setError('')
 
-    // Get Base64 Image
-    const signatureData = sigCanvas.current
-      ?.getTrimmedCanvas()
-      .toDataURL('image/png')
-
     try {
+      // Get Base64 Image - use toDataURL directly on the canvas to avoid getTrimmedCanvas issues
+      let signatureData: string
+      try {
+        // Try getTrimmedCanvas first (preferred, gives cropped result)
+        const trimmedCanvas = sigCanvas.current.getTrimmedCanvas()
+        signatureData = trimmedCanvas.toDataURL('image/png')
+      } catch {
+        // Fallback to regular toDataURL if getTrimmedCanvas fails
+        signatureData = sigCanvas.current.toDataURL('image/png')
+      }
+
       const token = localStorage.getItem('authToken')
 
-      // Now TypeScript knows bookingId is definitely a string
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000'
-        }/api/bookings/${bookingId}/sign`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ signatureData }),
-        }
-      )
+      // Call the local Next.js API route instead of the backend directly
+      const response = await fetch(`/api/bookings/${bookingId}/sign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ signatureData }),
+      })
 
       const data = await response.json()
 
