@@ -1,7 +1,7 @@
 # Railway Configuration for Rentverse Backend
 
 [build]
-builder = "dockerfile"
+builder = "docker"
 
 [deploy]
 startCommand = "npm start"
