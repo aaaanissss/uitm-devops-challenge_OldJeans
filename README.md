@@ -22,6 +22,80 @@ The security architecture aligns with *OWASP Mobile Top 10* and *DevSecOps best 
 
 ---
 
+## 📱 Mobile App (APK) Development
+
+RentVerse includes a mobile application built with **Next.js + Capacitor** that can be deployed as an Android APK. The mobile app provides the same secure rental platform features optimized for mobile devices.
+
+### 🎯 Mobile App Features
+
+- **Secure Authentication** - Login with MFA support
+- **Property Management** - Browse, search, and manage rental properties
+- **Digital Agreement Signing** - Mobile-optimized signature workflow
+- **Security Dashboard** - View security activities and report incidents
+- **Admin Functions** - Full admin capabilities on mobile
+
+### 🔄 Mobile Architecture
+
+- **Frontend**: Next.js 15 with React 19
+- **Mobile Framework**: Capacitor 8.0
+- **Authentication**: JWT with direct backend API calls
+- **Backend**: Same secure API gateway as web version
+- **Deployment**: Android APK (debug/release)
+
+### 🛠 Building the APK
+
+#### Step 1: Navigate to Frontend Directory
+```bash
+cd rentverse-frontend
+```
+
+#### Step 2: Install Dependencies
+```bash
+npm install
+```
+
+#### Step 3: Build Next.js Application
+```bash
+npm run build
+```
+*This creates the static production build in the `out/` directory*
+
+#### Step 4: Sync with Android Platform
+```bash
+npx cap sync android
+```
+*This copies the web assets to the Android project and updates Capacitor plugins*
+
+#### Step 5: Build the APK
+```bash
+cd android && ./gradlew assembleDebug
+```
+*For production release, use `assembleRelease` instead*
+
+### 📱 APK Location
+
+After successful build, the APK file will be available at:
+```
+rentverse-frontend/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 📲 Installation Instructions
+
+#### Method 1: Android Emulator
+1. Open Android Studio
+2. Launch an Android emulator (AVD)
+3. Drag and drop the APK file onto the emulator
+4. App will install and appear in the app drawer
+
+#### Method 2: Physical Android Device
+1. Transfer the APK file to your device (USB, email, cloud storage)
+2. Enable "Install from unknown sources" in device settings
+3. Tap the APK file to install
+4. Launch from app drawer once installed
+
+
+---
+
 ## 🧱 Overall Security Architecture
 
 - Client (Web/Mobile)
@@ -46,6 +120,10 @@ These prerequisites are required *once* for the entire RentVerse backend:
 - *Git*
 - *Environment variables configured*
 - *Authenticator App* (for MFA testing)
+
+### Mobile App Development (Additional Prerequisites)
+- *Android Studio* (for emulator/testing)
+- *Capacitor CLI*
 
 
 ## 🔐 Module 1 – Secure Login & MFA (Multi-Factor Authentication)
