@@ -1,4 +1,4 @@
-import { forwardRequest } from './apiForwarder'
+import { createApiUrl } from '@/utils/apiConfig'
 
 export interface BookingRequest {
   propertyId: string
@@ -22,127 +22,83 @@ export interface BookingResponse {
   updatedAt: string
 }
 
-/**
- * Get authentication headers with token from localStorage
- */
 function getAuthHeaders(): Record<string, string> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
-  
-  // Debug logging
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[BookingAPI] Token exists:', !!token)
-    if (token) {
-      console.log('[BookingAPI] Token preview:', token.substring(0, 20) + '...')
-    }
-  }
-  
+  const token =
+    typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+
   return {
     'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` })
+    ...(token && { Authorization: `Bearer ${token}` }),
   }
 }
 
+function unwrapBookingResponse(payload: any): any {
+  // supports: {data:{booking}}, {data:{}}, or direct object
+  return payload?.data?.booking ?? payload?.data ?? payload
+}
+
 export class BookingApiClient {
-  /**
-   * Create a new booking
-   */
-  static async createBooking(bookingData: BookingRequest): Promise<BookingResponse> {
-    try {
-      const headers = getAuthHeaders()
-      
-      // Enhanced debug logging
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[BookingAPI] Request headers:', headers)
-        console.log('[BookingAPI] Booking data:', bookingData)
-      }
+  static async createBooking(
+    bookingData: BookingRequest,
+  ): Promise<BookingResponse> {
+    const response = await fetch(createApiUrl('bookings'), {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(bookingData),
+    })
 
-      const response = await forwardRequest('/api/bookings', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(bookingData)
-      })
-
-      // Log response details
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[BookingAPI] Response status:', response.status)
-        console.log('[BookingAPI] Response headers:', Object.fromEntries(response.headers.entries()))
-      }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('[BookingAPI] Error response:', errorData)
-        throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || 'Unknown error'}`)
-      }
-
-      const result = await response.json()
-      console.log('[BookingAPI] Success response:', result)
-      return result
-    } catch (error) {
-      console.error('Error creating booking:', error)
-      throw error
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const msg = payload?.message || payload?.error || 'Unknown error'
+      throw new Error(`HTTP ${response.status}: ${msg}`)
     }
+
+    return unwrapBookingResponse(payload) as BookingResponse
   }
 
-  /**
-   * Get user's bookings
-   */
   static async getUserBookings(): Promise<BookingResponse[]> {
-    try {
-      const response = await forwardRequest('/api/bookings', {
-        method: 'GET',
-        headers: getAuthHeaders()
-      })
+    const response = await fetch(createApiUrl('bookings'), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error fetching user bookings:', error)
-      throw error
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const msg = payload?.message || payload?.error || 'Unknown error'
+      throw new Error(`HTTP ${response.status}: ${msg}`)
     }
+
+    const data = payload?.data?.bookings ?? payload?.data ?? payload
+    return data as BookingResponse[]
   }
 
-  /**
-   * Get booking by ID
-   */
   static async getBookingById(bookingId: string): Promise<BookingResponse> {
-    try {
-      const response = await forwardRequest(`/api/bookings/${bookingId}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      })
+    const response = await fetch(createApiUrl(`bookings/${bookingId}`), {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error fetching booking:', error)
-      throw error
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const msg = payload?.message || payload?.error || 'Unknown error'
+      throw new Error(`HTTP ${response.status}: ${msg}`)
     }
+
+    return unwrapBookingResponse(payload) as BookingResponse
   }
 
-  /**
-   * Cancel a booking
-   */
   static async cancelBooking(bookingId: string): Promise<BookingResponse> {
-    try {
-      const response = await forwardRequest(`/api/bookings/${bookingId}/cancel`, {
-        method: 'PATCH',
-        headers: getAuthHeaders()
-      })
+    const response = await fetch(createApiUrl(`bookings/${bookingId}/cancel`), {
+      method: 'PATCH',
+      headers: getAuthHeaders(),
+    })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      return await response.json()
-    } catch (error) {
-      console.error('Error cancelling booking:', error)
-      throw error
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      const msg = payload?.message || payload?.error || 'Unknown error'
+      throw new Error(`HTTP ${response.status}: ${msg}`)
     }
+
+    return unwrapBookingResponse(payload) as BookingResponse
   }
 }

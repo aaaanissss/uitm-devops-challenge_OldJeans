@@ -4,6 +4,7 @@
  */
 
 import type { PropertyListingData } from '@/stores/propertyListingStore'
+import { createApiUrl } from '@/utils/apiConfig'
 
 export interface MinimalPropertyUploadRequest {
   code: string
@@ -47,7 +48,7 @@ export interface PropertyUploadRequest {
   areaSqm: number
   furnished: boolean
   isAvailable: boolean
-  status: "DRAFT" | "PUBLISHED"
+  status: 'DRAFT' | 'PUBLISHED'
   images: string[]
   amenityIds: string[]
 }
@@ -84,70 +85,57 @@ export interface PropertyUploadResponse {
   }
 }
 
+function extractErrorMessage(payload: any, fallback: string) {
+  if (!payload) return fallback
+  if (typeof payload === 'string') return payload
+  return payload?.message || payload?.error || fallback
+}
+
 /**
  * Upload a property to the backend
  */
 export async function uploadProperty(
   propertyData: MinimalPropertyUploadRequest,
-  token: string
+  token: string,
 ): Promise<PropertyUploadResponse> {
   try {
+    const url = createApiUrl('properties')
+
     // Debug: Log the request data
-    console.log('Uploading property data:', JSON.stringify(propertyData, null, 2))
-    
-    const response = await fetch('/api/properties', {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PropertyUpload] POST', url)
+      console.log('[PropertyUpload] Payload:', JSON.stringify(propertyData, null, 2))
+    }
+
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'accept': 'application/json',
+        accept: 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(propertyData),
+      cache: 'no-cache',
     })
 
+    const data = await response.json().catch(() => ({} as any))
+
     if (!response.ok) {
-      // Try to get the error details from the response
-      let errorMessage = `Upload failed with status ${response.status}`
-      try {
-        const errorData = await response.json()
-        console.error('Backend error response:', errorData)
-        
-        if (errorData.message) {
-          errorMessage = errorData.message
-        } else if (errorData.error) {
-          errorMessage = errorData.error
-        } else if (errorData.details) {
-          // Handle detailed validation errors
-          errorMessage = `Validation failed: ${JSON.stringify(errorData.details)}`
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData
-        }
-      } catch (parseError) {
-        console.error('Could not parse error response:', parseError)
-        // Try to get response as text
-        try {
-          const errorText = await response.text()
-          console.error('Error response text:', errorText)
-          if (errorText) {
-            errorMessage = errorText
-          }
-        } catch {
-          // If we can't parse the error response, use the default message
-        }
-      }
-      throw new Error(errorMessage)
+      // Handle detailed validation errors if present
+      const details =
+        data?.details ? ` Validation details: ${JSON.stringify(data.details)}` : ''
+      const msg = extractErrorMessage(data, `Upload failed (HTTP ${response.status}).`)
+      throw new Error(`${msg}${details}`)
     }
 
-    const data: PropertyUploadResponse = await response.json()
-    
-    if (!data.success) {
-      throw new Error(data.message || 'Upload failed')
+    if (!data?.success) {
+      throw new Error(data?.message || 'Upload failed')
     }
 
-    return data
+    return data as PropertyUploadResponse
   } catch (error) {
     console.error('Property upload error:', error)
-    throw error
+    throw error instanceof Error ? error : new Error('Network error occurred')
   }
 }
 
@@ -163,29 +151,33 @@ function generatePropertyCode(): string {
 /**
  * Convert property listing data to upload format
  */
-export function mapPropertyListingToUploadRequest(data: PropertyListingData): MinimalPropertyUploadRequest {
-  // Ensure we have a propertyTypeId - use fallback if not available
+export function mapPropertyListingToUploadRequest(
+  data: PropertyListingData,
+): MinimalPropertyUploadRequest {
   const propertyTypeId = data.propertyTypeId || getDefaultPropertyTypeId(data.propertyType)
-  
+
   if (!propertyTypeId) {
     console.warn('No propertyTypeId available, this may cause upload issues')
   }
 
-  // Validate and prepare images array
-  const images = Array.isArray(data.images) ? data.images.filter(url => url && url.trim() !== '') : []
-  
+  const images = Array.isArray(data.images)
+    ? data.images.filter((url) => url && url.trim() !== '')
+    : []
+
   if (images.length === 0) {
     console.warn('No images found in property data - property will be uploaded without images')
   } else {
     console.log(`Preparing property upload with ${images.length} images:`, images)
   }
 
-  // Create a minimal payload with only essential fields
-  const payload = {
+  const payload: MinimalPropertyUploadRequest = {
     code: generatePropertyCode(),
     title: data.title || 'Test Property',
     description: data.description || 'Test Description',
-    address: data.streetAddress || data.address || `${data.city || 'Kuala Lumpur'}, ${data.state || 'Selangor'}`,
+    address:
+      data.streetAddress ||
+      data.address ||
+      `${data.city || 'Kuala Lumpur'}, ${data.state || 'Selangor'}`,
     city: data.city || 'Kuala Lumpur',
     state: data.state || 'Selangor',
     zipCode: data.zipCode || '50000',
@@ -193,18 +185,21 @@ export function mapPropertyListingToUploadRequest(data: PropertyListingData): Mi
     longitude: data.longitude || 101.6869,
     price: Math.max(data.price || 1000, 1),
     currencyCode: 'MYR',
-    propertyTypeId: propertyTypeId,
+    propertyTypeId,
     bedrooms: Math.max(data.bedrooms || 1, 1),
     bathrooms: Math.max(data.bathrooms || 1, 1),
     areaSqm: Math.max(data.areaSqm || 100, 1),
     furnished: false,
     isAvailable: true,
-    images: images, // Include validated Cloudinary images
-    amenityIds: []
+    images,
+    amenityIds: [],
   }
-  
-  console.log('Property data with dynamic propertyTypeId and images:', JSON.stringify(payload, null, 2))
-  console.log('Images included:', payload.images.length, 'URLs')
+
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[PropertyUpload] Mapped payload:', JSON.stringify(payload, null, 2))
+    console.log('[PropertyUpload] Images included:', payload.images.length, 'URLs')
+  }
+
   return payload
 }
 
@@ -213,19 +208,19 @@ export function mapPropertyListingToUploadRequest(data: PropertyListingData): Mi
  * This is a fallback for cases where dynamic ID isn't available
  */
 function getDefaultPropertyTypeId(propertyType?: string): string {
-  // These should be replaced with actual IDs from your backend
-  // For now, we'll use the fallback IDs for development
   const fallbackMap: Record<string, string> = {
-    'Apartment': 'fallback-apartment-id',
-    'Condominium': 'fallback-condominium-id', 
-    'House': 'fallback-house-id',
-    'Townhouse': 'fallback-townhouse-id',
-    'Villa': 'fallback-villa-id',
-    'Penthouse': 'fallback-penthouse-id',
-    'Studio': 'fallback-studio-id',
+    Apartment: 'fallback-apartment-id',
+    Condominium: 'fallback-condominium-id',
+    House: 'fallback-house-id',
+    Townhouse: 'fallback-townhouse-id',
+    Villa: 'fallback-villa-id',
+    Penthouse: 'fallback-penthouse-id',
+    Studio: 'fallback-studio-id',
   }
-  
-  console.warn(`Using fallback propertyTypeId for "${propertyType}". Consider implementing dynamic property type ID mapping.`)
+
+  console.warn(
+    `Using fallback propertyTypeId for "${propertyType}". Consider implementing dynamic property type ID mapping.`,
+  )
   return fallbackMap[propertyType || ''] || 'fallback-apartment-id'
 }
 
@@ -233,24 +228,22 @@ function getDefaultPropertyTypeId(propertyType?: string): string {
  * Enhanced mapping function that gets propertyTypeId from actual API data
  */
 export async function mapPropertyListingToUploadRequestWithDynamicTypes(
-  data: PropertyListingData
+  data: PropertyListingData,
 ): Promise<MinimalPropertyUploadRequest> {
   let propertyTypeId = data.propertyTypeId
 
-  // If we don't have a propertyTypeId, try to get it from the property types API
   if (!propertyTypeId && data.propertyType) {
     try {
-      // Import here to avoid circular dependencies
       const { PropertyTypesApiClient } = await import('@/utils/propertyTypesApiClient')
-      
       const response = await PropertyTypesApiClient.getPropertyTypes()
-      
+
       if (response.success && response.data) {
-        const matchingType = response.data.find(type => 
-          type.name === data.propertyType || 
-          type.code === data.propertyType?.toUpperCase()
+        const matchingType = response.data.find(
+          (type) =>
+            type.name === data.propertyType ||
+            type.code === data.propertyType?.toUpperCase(),
         )
-        
+
         if (matchingType) {
           propertyTypeId = matchingType.id
           console.log(`Found dynamic propertyTypeId: ${propertyTypeId} for ${data.propertyType}`)
@@ -261,14 +254,14 @@ export async function mapPropertyListingToUploadRequestWithDynamicTypes(
     }
   }
 
-  // Final fallback if still no ID
   if (!propertyTypeId) {
     propertyTypeId = getDefaultPropertyTypeId(data.propertyType)
   }
 
-  // Validate and prepare images array
-  const images = Array.isArray(data.images) ? data.images.filter(url => url && url.trim() !== '') : []
-  
+  const images = Array.isArray(data.images)
+    ? data.images.filter((url) => url && url.trim() !== '')
+    : []
+
   if (images.length === 0) {
     console.warn('No images found in property data - property will be uploaded without images')
   } else {
@@ -279,7 +272,10 @@ export async function mapPropertyListingToUploadRequestWithDynamicTypes(
     code: generatePropertyCode(),
     title: data.title || 'Test Property',
     description: data.description || 'Test Description',
-    address: data.streetAddress || data.address || `${data.city || 'Kuala Lumpur'}, ${data.state || 'Selangor'}`,
+    address:
+      data.streetAddress ||
+      data.address ||
+      `${data.city || 'Kuala Lumpur'}, ${data.state || 'Selangor'}`,
     city: data.city || 'Kuala Lumpur',
     state: data.state || 'Selangor',
     zipCode: data.zipCode || '50000',
@@ -287,13 +283,13 @@ export async function mapPropertyListingToUploadRequestWithDynamicTypes(
     longitude: data.longitude || 101.6869,
     price: Math.max(data.price || 1000, 1),
     currencyCode: 'MYR',
-    propertyTypeId: propertyTypeId,
+    propertyTypeId,
     bedrooms: Math.max(data.bedrooms || 1, 1),
     bathrooms: Math.max(data.bathrooms || 1, 1),
     areaSqm: Math.max(data.areaSqm || 100, 1),
     furnished: false,
     isAvailable: true,
-    images: images, // Include validated Cloudinary images
-    amenityIds: []
+    images,
+    amenityIds: [],
   }
 }

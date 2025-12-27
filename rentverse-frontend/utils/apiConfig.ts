@@ -68,8 +68,20 @@ export const getAiServiceApiUrl = (): string => {
  * @param endpoint - The API endpoint (e.g., 'properties', 'bookings/123')
  */
 export const createApiUrl = (endpoint: string): string => {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint
-  return `${getApiUrl()}/${cleanEndpoint}`
+  const baseUrl = getApiUrl().replace(/\/$/, '') // remove trailing slash
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+
+  // Prevent double "/api/api" when base already ends with "/api"
+  const baseEndsWithApi = baseUrl.endsWith('/api')
+  const endpointStartsWithApi =
+    cleanEndpoint === '/api' || cleanEndpoint.startsWith('/api/') || cleanEndpoint.startsWith('/api?')
+
+  if (baseEndsWithApi && endpointStartsWithApi) {
+    cleanEndpoint = cleanEndpoint.replace(/^\/api/, '')
+    if (!cleanEndpoint.startsWith('/')) cleanEndpoint = `/${cleanEndpoint}`
+  }
+
+  return `${baseUrl}${cleanEndpoint}`
 }
 
 /**

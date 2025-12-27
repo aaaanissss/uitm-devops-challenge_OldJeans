@@ -1,28 +1,33 @@
-import type { Property, PropertyViewResponse, PropertiesResponse, SearchFilters } from '@/types/property'
-import { forwardRequest } from './apiForwarder'
+import type {
+  Property,
+  PropertyViewResponse,
+  PropertiesResponse,
+  SearchFilters,
+} from '@/types/property'
+import { createApiUrl } from '@/utils/apiConfig'
 
 /**
- * Properties API client
+ * Properties API client (calls backend directly via createApiUrl)
+ * IMPORTANT: endpoints passed to createApiUrl MUST NOT start with "api/"
  */
 export class PropertiesApiClient {
-  
   /**
    * Log a property view
    */
   static async logPropertyView(propertyId: string): Promise<PropertyViewResponse> {
     try {
-      const response = await forwardRequest(`/api/properties/${propertyId}/view`, {
+      const response = await fetch(createApiUrl(`properties/${propertyId}/view`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}), // Empty body as per the curl example
+        body: JSON.stringify({}), // Empty body as per backend expectation
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to log property view')
+        throw new Error(data?.message || 'Failed to log property view')
       }
 
       return data as PropertyViewResponse
@@ -37,21 +42,21 @@ export class PropertiesApiClient {
    */
   static async getProperty(propertyId: string): Promise<Property> {
     try {
-      const response = await forwardRequest(`/api/properties/${propertyId}`, {
+      const response = await fetch(createApiUrl(`properties/${propertyId}`), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to get property details')
+        throw new Error(data?.message || 'Failed to get property details')
       }
 
-      // The backend returns property data in data.property structure
-      const backendProperty = data.data?.property || data.data
+      // Backend commonly returns { success, data: { property } } or { success, data }
+      const backendProperty = data?.data?.property ?? data?.data
       if (!backendProperty) {
         throw new Error('No property data found in response')
       }
@@ -60,11 +65,14 @@ export class PropertiesApiClient {
       const propertyData: Property = {
         ...backendProperty,
         // Map propertyType.code to type field for compatibility
-        type: backendProperty.propertyType?.code || 'APARTMENT',
-        // Ensure price is converted to number if it's a string
-        price: typeof backendProperty.price === 'string' ? parseFloat(backendProperty.price) : backendProperty.price,
+        type: backendProperty.propertyType?.code || backendProperty.type || 'APARTMENT',
+        // Ensure price is a number
+        price:
+          typeof backendProperty.price === 'string'
+            ? parseFloat(backendProperty.price)
+            : backendProperty.price,
         // Ensure area is available (map from areaSqm if area is missing)
-        area: backendProperty.area || backendProperty.areaSqm || 0,
+        area: backendProperty.area ?? backendProperty.areaSqm ?? 0,
       }
 
       return propertyData
@@ -79,29 +87,28 @@ export class PropertiesApiClient {
    */
   static async searchProperties(filters: SearchFilters = {}): Promise<PropertiesResponse> {
     try {
-      // Build query parameters
       const params = new URLSearchParams()
-      
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          params.append(key, value.toString())
+          params.append(key, String(value))
         }
       })
 
       const queryString = params.toString()
-      const endpoint = `/api/properties${queryString ? `?${queryString}` : ''}`
+      const endpoint = `properties${queryString ? `?${queryString}` : ''}`
 
-      const response = await forwardRequest(endpoint, {
+      const response = await fetch(createApiUrl(endpoint), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
         },
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to search properties')
+        throw new Error(data?.message || 'Failed to search properties')
       }
 
       return data as PropertiesResponse
@@ -114,9 +121,11 @@ export class PropertiesApiClient {
   /**
    * Create a new property
    */
-  static async createProperty(propertyData: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>): Promise<Property> {
+  static async createProperty(
+    propertyData: Omit<Property, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<Property> {
     try {
-      const response = await forwardRequest('/api/properties', {
+      const response = await fetch(createApiUrl('properties'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,13 +133,13 @@ export class PropertiesApiClient {
         body: JSON.stringify(propertyData),
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create property')
+        throw new Error(data?.message || 'Failed to create property')
       }
 
-      return data.data as Property
+      return (data?.data?.property ?? data?.data ?? data) as Property
     } catch (error) {
       console.error('Create property API error:', error)
       throw error instanceof Error ? error : new Error('Network error occurred')
@@ -142,7 +151,7 @@ export class PropertiesApiClient {
    */
   static async updateProperty(propertyId: string, updates: Partial<Property>): Promise<Property> {
     try {
-      const response = await forwardRequest(`/api/properties/${propertyId}`, {
+      const response = await fetch(createApiUrl(`properties/${propertyId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -150,13 +159,13 @@ export class PropertiesApiClient {
         body: JSON.stringify(updates),
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to update property')
+        throw new Error(data?.message || 'Failed to update property')
       }
 
-      return data.data as Property
+      return (data?.data?.property ?? data?.data ?? data) as Property
     } catch (error) {
       console.error('Update property API error:', error)
       throw error instanceof Error ? error : new Error('Network error occurred')
@@ -168,20 +177,20 @@ export class PropertiesApiClient {
    */
   static async deleteProperty(propertyId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await forwardRequest(`/api/properties/${propertyId}`, {
+      const response = await fetch(createApiUrl(`properties/${propertyId}`), {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
       })
 
-      const data = await response.json()
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to delete property')
+        throw new Error(data?.message || 'Failed to delete property')
       }
 
-      return data
+      return data as { success: boolean; message: string }
     } catch (error) {
       console.error('Delete property API error:', error)
       throw error instanceof Error ? error : new Error('Network error occurred')

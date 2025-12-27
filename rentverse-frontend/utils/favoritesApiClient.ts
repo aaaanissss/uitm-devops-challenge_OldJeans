@@ -1,7 +1,5 @@
 import type { Property } from '@/types/property'
-import { getApiUrl } from './apiConfig'
-
-const BASE_URL = getApiUrl()
+import { createApiUrl } from './apiConfig'
 
 // Backend response property structure
 interface BackendProperty {
@@ -91,98 +89,108 @@ function transformProperty(backendProperty: BackendProperty): Property {
     state: backendProperty.state,
     zipCode: backendProperty.zipCode,
     country: backendProperty.country,
+
+    // keep your existing type expectations
     price: backendProperty.price,
     currencyCode: backendProperty.currencyCode,
-    type: backendProperty.propertyType.code as 'APARTMENT' | 'HOUSE' | 'STUDIO' | 'CONDO' | 'VILLA' | 'ROOM', // Map the propertyType.code to type
+    type: backendProperty.propertyType.code as
+      | 'APARTMENT'
+      | 'HOUSE'
+      | 'STUDIO'
+      | 'CONDO'
+      | 'VILLA'
+      | 'ROOM',
+
     bedrooms: backendProperty.bedrooms,
     bathrooms: backendProperty.bathrooms,
     area: backendProperty.areaSqm,
     areaSqm: backendProperty.areaSqm,
+
     furnished: backendProperty.furnished,
     isAvailable: backendProperty.isAvailable,
+
     viewCount: backendProperty.viewCount,
     averageRating: backendProperty.averageRating,
     totalRatings: backendProperty.totalRatings,
     isFavorited: backendProperty.isFavorited,
     favoriteCount: backendProperty.favoriteCount,
+
     images: backendProperty.images,
-    amenities: backendProperty.amenities.map(a => a.amenity.name), // Simplify amenities to string array
+    amenities: backendProperty.amenities.map((a) => a.amenity.name),
+
     latitude: backendProperty.latitude,
     longitude: backendProperty.longitude,
     placeId: backendProperty.placeId,
     projectName: backendProperty.projectName,
     developer: backendProperty.developer,
+
     status: backendProperty.status,
     createdAt: backendProperty.createdAt,
     updatedAt: backendProperty.updatedAt,
+
     ownerId: backendProperty.ownerId,
     propertyTypeId: backendProperty.propertyTypeId,
+
     owner: {
       ...backendProperty.owner,
-      phone: '', // Add missing phone field with empty string as fallback
+      phone: '', // fallback
     },
+
     propertyType: backendProperty.propertyType,
     mapsUrl: backendProperty.mapsUrl,
   }
 }
 
-export class FavoritesApiClient {
-  private static getAuthToken(): string | null {
-    if (typeof window === 'undefined') return null
-    return localStorage.getItem('authToken')
+function getAuthHeaders(includeJsonContentType: boolean = false): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null
+
+  return {
+    accept: 'application/json',
+    ...(includeJsonContentType ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   }
+}
 
+function extractErrorMessage(payload: any, fallback: string): string {
+  return payload?.message || payload?.error || fallback
+}
+
+export class FavoritesApiClient {
   static async getFavorites(page: number = 1, limit: number = 10): Promise<FavoritesResponse> {
-    const token = this.getAuthToken()
-    
-    const headers: Record<string, string> = {
-      'accept': 'application/json',
-    }
-    
-    // Add authorization header if token is available
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
     try {
-      console.log('Fetching favorites from API...')
-      console.log('URL:', `${BASE_URL}/properties/favorites?page=${page}&limit=${limit}`)
+      const url = createApiUrl(`properties/favorites?page=${page}&limit=${limit}`)
 
-      const response = await fetch(`${BASE_URL}/properties/favorites?page=${page}&limit=${limit}`, {
+      const response = await fetch(url, {
         method: 'GET',
-        headers,
-        mode: 'cors',
+        headers: getAuthHeaders(false),
         cache: 'no-cache',
       })
 
-      console.log('Response status:', response.status)
+      const data = await response.json().catch(() => ({} as any))
 
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('API Error Response:', errorText)
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
+        throw new Error(
+          `HTTP ${response.status}: ${extractErrorMessage(data, 'Failed to fetch favorites')}`,
+        )
       }
 
-      const data = await response.json()
-      console.log('Successfully fetched favorites:', data.data?.favorites?.length || 0, 'items')
-      
       // Transform backend properties to frontend format
-      const transformedData = {
+      const favorites = (data?.data?.favorites ?? []).map(transformProperty)
+
+      return {
         ...data,
         data: {
           ...data.data,
-          favorites: data.data.favorites.map(transformProperty)
-        }
-      }
-      
-      return transformedData
+          favorites,
+        },
+      } as FavoritesResponse
     } catch (error) {
       console.error('Error fetching favorites:', error)
-      throw error
+      throw error instanceof Error ? error : new Error('Network error occurred')
     }
   }
 
-  static async addToFavorites(propertyId: string): Promise<{ 
+  static async addToFavorites(propertyId: string): Promise<{
     success: boolean
     message: string
     data: {
@@ -191,41 +199,32 @@ export class FavoritesApiClient {
       favoriteCount: number
     }
   }> {
-    const token = this.getAuthToken()
-    
-    const headers: Record<string, string> = {
-      'accept': 'application/json',
-      'Content-Type': 'application/json',
-    }
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`
-    }
-
     try {
-      console.log('Toggling favorite for property:', propertyId)
-      const response = await fetch(`${BASE_URL}/properties/${propertyId}/favorite`, {
+      const url = createApiUrl(`properties/${propertyId}/favorite`)
+
+      const response = await fetch(url, {
         method: 'POST',
-        headers,
-        mode: 'cors',
-        body: '',
+        headers: getAuthHeaders(true),
+        // backend toggles; no body needed, but some servers dislike undefined
+        body: JSON.stringify({}),
       })
 
+      const data = await response.json().catch(() => ({} as any))
+
       if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`)
+        throw new Error(
+          `HTTP ${response.status}: ${extractErrorMessage(data, 'Failed to toggle favorite')}`,
+        )
       }
 
-      const data = await response.json()
-      console.log('Successfully toggled favorite:', data)
       return data
     } catch (error) {
       console.error('Error toggling favorite:', error)
-      throw error
+      throw error instanceof Error ? error : new Error('Network error occurred')
     }
   }
 
-  static async removeFromFavorites(propertyId: string): Promise<{ 
+  static async removeFromFavorites(propertyId: string): Promise<{
     success: boolean
     message: string
     data: {
@@ -234,11 +233,11 @@ export class FavoritesApiClient {
       favoriteCount: number
     }
   }> {
-    // Use the same POST endpoint - backend handles the toggle
+    // backend uses toggle on same endpoint
     return this.addToFavorites(propertyId)
   }
 
-  static async toggleFavorite(propertyId: string): Promise<{ 
+  static async toggleFavorite(propertyId: string): Promise<{
     success: boolean
     message: string
     data: {
@@ -247,7 +246,6 @@ export class FavoritesApiClient {
       favoriteCount: number
     }
   }> {
-    // Since backend uses same endpoint for toggle, we just call the POST endpoint
     return this.addToFavorites(propertyId)
   }
 }
