@@ -24,7 +24,14 @@ export async function forwardRequest(
   
   // Ensure proper URL construction by removing trailing slash from base and leading slash from endpoint
   const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+  const baseEndsWithApi = baseUrl.endsWith('/api')
+  const endpointStartsWithApi = cleanEndpoint === '/api' || cleanEndpoint.startsWith('/api/')
+  if (baseEndsWithApi && endpointStartsWithApi) {
+    cleanEndpoint = cleanEndpoint.replace(/^\/api/, '')
+    if (!cleanEndpoint.startsWith('/')) cleanEndpoint = `/${cleanEndpoint}`
+  }
+
   const url = `${baseUrl}${cleanEndpoint}`
   
   // Debug log for development

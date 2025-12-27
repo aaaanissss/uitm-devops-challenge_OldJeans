@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'RentVerse',
   webDir: 'out',
   server: {
-    url: 'https://uitm-devops-challenge-old-jeans-fkk4-kkwpuzrc3.vercel.app',
+    url: 'https://uitm-devops-challenge-old-jeans-fkk.vercel.app',
     cleartext: false,
   },
 }
